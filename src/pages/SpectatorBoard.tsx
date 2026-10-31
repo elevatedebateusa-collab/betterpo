@@ -15,7 +15,6 @@ import {
   MessageSquare,
   Search,
   Star,
-  UserCheck,
   Mic,
   ChevronUp,
   ChevronDown,
@@ -367,12 +366,6 @@ export const SpectatorBoard: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {/* Realtime Live Broadcast Indicator */}
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono font-bold bg-emerald-50 text-emerald-800 border border-emerald-200">
-            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="hidden sm:inline">Live Sync</span>
-          </div>
-
           {/* Claim Name Button */}
           <button
             onClick={() => setShowClaimModal(true)}
@@ -442,22 +435,6 @@ export const SpectatorBoard: React.FC = () => {
                   Author Affiliation: <span className="text-slate-600">{activeBill.author_school}</span>
                 </div>
               )}
-            </div>
-
-            {/* Chamber Status Pill */}
-            <div className="flex items-center gap-2 self-start sm:self-center">
-              <span
-                className={`px-3 py-1 rounded-full text-xs font-mono font-bold uppercase tracking-wider border flex items-center gap-1.5 ${
-                  room.status === 'in_session'
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                    : room.status === 'recess'
-                    ? 'bg-amber-50 border-amber-200 text-amber-800'
-                    : 'bg-rose-50 border-rose-200 text-rose-800'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${room.status === 'in_session' ? 'bg-emerald-500 animate-pulse' : room.status === 'recess' ? 'bg-amber-500 animate-pulse' : 'bg-rose-500'}`} />
-                <span>{room.status.replace('_', ' ')}</span>
-              </span>
             </div>
           </div>
 
@@ -1034,16 +1011,11 @@ export const SpectatorBoard: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white border border-slate-200 rounded-2xl w-full max-w-md p-6 shadow-2xl relative space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2.5">
-                <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200">
-                  <UserCheck className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="font-serif-editorial font-bold text-slate-900 text-base">Claim Your Name</h3>
-                  <p className="text-xs font-mono text-slate-400">
-                    Pin your seat to track your live recency distance
-                  </p>
-                </div>
+              <div>
+                <h3 className="font-serif-editorial font-bold text-slate-900 text-base">Claim Your Name</h3>
+                <p className="text-xs font-mono text-slate-400">
+                  Pin your seat to track your live recency distance
+                </p>
               </div>
               <button
                 onClick={() => setShowClaimModal(false)}

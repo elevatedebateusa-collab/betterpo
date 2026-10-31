@@ -18,6 +18,7 @@ import {
   Play
 } from 'lucide-react';
 import { chamberService } from '../lib/chamberService';
+import { parseTabroomRecencyList, type ParsedSenator } from '../lib/rosterParser';
 import { BetterPOLogoSvg } from '../components/BetterPOLogoSvg';
 import { GavelTappingLoader } from '../components/GavelTappingLoader';
 
@@ -44,6 +45,7 @@ export const ChamberLanding: React.FC = () => {
     chamberName: string;
     debaterCount: number;
     firstBillTitle: string;
+    confirmedRoster: Array<{ name: string; school: string; recency: number }>;
   } | null>(null);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
@@ -57,6 +59,7 @@ export const ChamberLanding: React.FC = () => {
   const [adminPin, setAdminPin] = useState<string>('');
   const [docketBills, setDocketBills] = useState<string[]>(['']);
   const [rosterText, setRosterText] = useState<string>('');
+  const [senatorsList, setSenatorsList] = useState<ParsedSenator[]>([]);
   const [isCreatingChamber, setIsCreatingChamber] = useState<boolean>(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -123,27 +126,55 @@ export const ChamberLanding: React.FC = () => {
     });
   };
 
-  // Parse roster text into debaters
-  const parsedDebaters = React.useMemo(() => {
-    return rosterText
-      .split('\n')
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0)
-      .map((line) => {
-        let name = line;
-        let school = '';
-        if (line.includes('-')) {
-          const parts = line.split('-');
-          name = parts[0].trim();
-          school = parts.slice(1).join('-').trim();
-        } else if (line.includes(',')) {
-          const parts = line.split(',');
-          name = parts[0].trim();
-          school = parts.slice(1).join(',').trim();
-        }
-        return { name, school };
-      });
-  }, [rosterText]);
+  // Handle Roster Parsing & Editing
+  const handleRosterTextChange = (text: string) => {
+    setRosterText(text);
+    const parsed = parseTabroomRecencyList(text);
+    setSenatorsList(parsed);
+  };
+
+  const handleUpdateSenatorRecency = (id: string, newRecency: number) => {
+    setSenatorsList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, recency: newRecency } : s))
+    );
+  };
+
+  const handleUpdateSenatorName = (id: string, newName: string) => {
+    setSenatorsList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, name: newName } : s))
+    );
+  };
+
+  const handleUpdateSenatorSchool = (id: string, newSchool: string) => {
+    setSenatorsList((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, school: newSchool } : s))
+    );
+  };
+
+  const handleRemoveSenator = (id: string) => {
+    setSenatorsList((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleAddSenator = () => {
+    const nextRecency = senatorsList.length + 1;
+    const newSen: ParsedSenator = {
+      id: `senator_manual_${Date.now()}`,
+      name: '',
+      school: '',
+      recency: nextRecency,
+    };
+    setSenatorsList((prev) => [...prev, newSen]);
+  };
+
+  const handleAutoNumberSenators = () => {
+    setSenatorsList((prev) =>
+      prev.map((s, idx) => ({ ...s, recency: idx + 1 }))
+    );
+  };
+
+  const handleSortSenatorsByRecency = () => {
+    setSenatorsList((prev) => [...prev].sort((a, b) => a.recency - b.recency));
+  };
 
   // Handle Spectator Join
   const handleSpectatorJoin = async (e: React.FormEvent) => {
@@ -185,11 +216,28 @@ export const ChamberLanding: React.FC = () => {
       const pin = adminPin.trim() || generateRandomPin();
       const code = generateRandomPin();
 
+      let validSenators = senatorsList
+        .filter((s) => s.name.trim().length > 0)
+        .map((s, idx) => ({
+          name: s.name.trim(),
+          school: s.school.trim(),
+          initialRecency: s.recency !== undefined && !isNaN(s.recency) ? s.recency : idx + 1,
+        }));
+
+      if (validSenators.length === 0 && rosterText.trim().length > 0) {
+        const parsed = parseTabroomRecencyList(rosterText);
+        validSenators = parsed.map((s, idx) => ({
+          name: s.name.trim(),
+          school: s.school.trim(),
+          initialRecency: s.recency !== undefined && !isNaN(s.recency) ? s.recency : idx + 1,
+        }));
+      }
+
       const { room } = await chamberService.createRoom(
         chamberName.trim(),
         code,
         pin,
-        parsedDebaters
+        validSenators
       );
 
       const validBills = docketBills
@@ -210,8 +258,11 @@ export const ChamberLanding: React.FC = () => {
         code: room.code,
         pin,
         chamberName: room.name,
-        debaterCount: parsedDebaters.length,
-        firstBillTitle: validBills[0] || 'General Orders'
+        debaterCount: validSenators.length,
+        firstBillTitle: validBills[0] || 'General Orders',
+        confirmedRoster: [...validSenators]
+          .sort((a, b) => a.initialRecency - b.initialRecency)
+          .map((s) => ({ name: s.name, school: s.school, recency: s.initialRecency })),
       });
       setIsCreatingChamber(false);
     } catch (err: unknown) {
@@ -568,13 +619,13 @@ export const ChamberLanding: React.FC = () => {
                           Copy and Paste Tabroom Roster
                         </label>
                         <span className="font-sans text-xs text-[#006948] font-bold">
-                          {parsedDebaters.length} senators detected
+                          {senatorsList.length} senators detected
                         </span>
                       </div>
                       <textarea
                         rows={4}
                         value={rosterText}
-                        onChange={(e) => setRosterText(e.target.value)}
+                        onChange={(e) => handleRosterTextChange(e.target.value)}
                         placeholder=""
                         autoComplete="off"
                         autoCorrect="off"
@@ -582,6 +633,113 @@ export const ChamberLanding: React.FC = () => {
                         className="w-full bg-white border border-slate-200 focus:border-[#006948] rounded-xl px-4 py-2.5 text-xs font-sans text-slate-900 focus:outline-none resize-none"
                       />
                     </div>
+
+                    {/* Interactive Recency Order Confirmation Card */}
+                    {senatorsList.length > 0 && (
+                      <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/80 border border-slate-200 space-y-3">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-sans text-xs font-bold uppercase tracking-wider text-slate-800">
+                                Confirm Speaker Recency Order
+                              </span>
+                              <span className="text-[11px] font-sans font-semibold px-2 py-0.5 rounded-md bg-[#006948]/10 text-[#006948]">
+                                {senatorsList.length} Debaters
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 font-sans mt-0.5">
+                              Tabroom recency detected. Each speaker is assigned an initial speaking order.
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <button
+                              type="button"
+                              onClick={handleAutoNumberSenators}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-sans font-semibold transition-colors"
+                              title="Reset numbers to 1..N"
+                            >
+                              Auto-Number
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleSortSenatorsByRecency}
+                              className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-sans font-semibold transition-colors"
+                              title="Sort list by recency order"
+                            >
+                              Sort Order
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleAddSenator}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#006948] text-slate-800 text-xs font-sans font-semibold transition-colors"
+                            >
+                              <Plus className="w-3 h-3" />
+                              <span>Add</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+                          {senatorsList.map((senator, idx) => (
+                            <div
+                              key={senator.id || idx}
+                              className="flex items-center gap-2 p-2 rounded-xl bg-white border border-slate-200 hover:border-slate-300 transition-colors"
+                            >
+                              {/* Number indicator */}
+                              <div className="flex items-center gap-1 shrink-0">
+                                <span className="font-sans text-xs font-bold text-slate-400">#</span>
+                                <input
+                                  type="number"
+                                  min={1}
+                                  value={senator.recency}
+                                  onChange={(e) =>
+                                    handleUpdateSenatorRecency(
+                                      senator.id,
+                                      parseInt(e.target.value, 10) || 1
+                                    )
+                                  }
+                                  className="w-12 h-7 text-center bg-slate-50 border border-slate-200 focus:border-[#006948] rounded-md text-xs font-bold font-mono tabular-nums text-slate-900 focus:outline-none"
+                                  title="Initial Recency Order"
+                                />
+                              </div>
+
+                              {/* Senator Name */}
+                              <input
+                                type="text"
+                                placeholder=""
+                                value={senator.name}
+                                onChange={(e) =>
+                                  handleUpdateSenatorName(senator.id, e.target.value)
+                                }
+                                className="flex-1 min-w-[120px] h-7 bg-transparent px-2 text-xs font-sans font-semibold text-slate-900 placeholder:text-slate-400 focus:outline-none border-b border-transparent focus:border-[#006948]"
+                              />
+
+                              {/* Senator School */}
+                              <input
+                                type="text"
+                                placeholder=""
+                                value={senator.school}
+                                onChange={(e) =>
+                                  handleUpdateSenatorSchool(senator.id, e.target.value)
+                                }
+                                className="w-28 sm:w-40 h-7 bg-transparent px-2 text-xs font-sans text-slate-500 placeholder:text-slate-400 focus:outline-none border-b border-transparent focus:border-[#006948]"
+                              />
+
+                              {/* Remove action */}
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSenator(senator.id)}
+                                className="p-1 text-slate-300 hover:text-rose-600 transition-colors shrink-0"
+                                title="Remove speaker"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
                     {/* Submit Button */}
                     <button
@@ -602,13 +760,6 @@ export const ChamberLanding: React.FC = () => {
             {selectedRole === 'po' && createdChamberInfo && (
               <div className="max-w-lg mx-auto w-full animate-fadeIn">
                 <div className="bg-white border border-slate-100 rounded-[28px] p-8 sm:p-10 space-y-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)] text-center">
-                  
-                  {/* Status Badge */}
-                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[#006948] font-sans text-xs font-semibold">
-                    <span className="w-2 h-2 rounded-full bg-[#10B981] animate-pulse" />
-                    <span>CHAMBER CREATED & READY</span>
-                  </div>
-
                   <div>
                     <h2 className="font-sans text-2xl font-bold uppercase text-slate-900 tracking-tight">
                       {createdChamberInfo.chamberName}
@@ -683,6 +834,45 @@ export const ChamberLanding: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Confirmed Recency Order Display */}
+                  {createdChamberInfo.confirmedRoster && createdChamberInfo.confirmedRoster.length > 0 && (
+                    <div className="p-4 sm:p-5 rounded-2xl bg-slate-50 border border-slate-200 text-left space-y-2.5">
+                      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
+                        <span className="font-sans text-xs font-bold uppercase tracking-wider text-slate-800">
+                          Confirmed Starting Recency Order
+                        </span>
+                        <span className="text-[11px] font-sans font-bold text-[#006948]">
+                          {createdChamberInfo.confirmedRoster.length} Verified
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-sans leading-relaxed">
+                        Recognition priority at round start will strictly follow this official recency order:
+                      </p>
+                      <div className="max-h-44 overflow-y-auto space-y-1.5 pr-1 font-sans text-xs">
+                        {createdChamberInfo.confirmedRoster.map((sen, idx) => (
+                          <div
+                            key={idx}
+                            className="flex items-center justify-between p-2 rounded-xl bg-white border border-slate-200"
+                          >
+                            <div className="flex items-center gap-2.5 truncate">
+                              <span className="w-6 h-5 rounded bg-slate-100 border border-slate-200 font-mono font-bold text-[10px] text-slate-700 flex items-center justify-center tabular-nums">
+                                #{sen.recency}
+                              </span>
+                              <span className="font-semibold text-slate-900 truncate">
+                                {sen.name}
+                              </span>
+                            </div>
+                            {sen.school && (
+                              <span className="text-[11px] text-slate-500 truncate max-w-[140px]">
+                                {sen.school}
+                              </span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Primary "Start Round" CTA */}
                   <div className="pt-2">
                     <button
@@ -691,7 +881,7 @@ export const ChamberLanding: React.FC = () => {
                       className="w-full py-4 px-6 rounded-2xl bg-[#090d16] hover:bg-[#006948] text-white font-sans text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all"
                     >
                       <Play className="w-4 h-4 fill-current text-[#10B981]" />
-                      <span>Start Round</span>
+                      <span>START ROUND</span>
                       <ArrowRight className="w-4 h-4 ml-1" />
                     </button>
                   </div>

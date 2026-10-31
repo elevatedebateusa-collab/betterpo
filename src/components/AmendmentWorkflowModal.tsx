@@ -72,30 +72,25 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-fade-in font-sans">
-      <div className="relative w-full max-w-xl bg-white border border-slate-200/90 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+      <div className="relative w-full max-w-xl bg-white border border-[#CBD5E1] rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 bg-slate-50/50">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#006948] border border-emerald-100 flex items-center justify-center shrink-0">
-              <FileEdit className="w-5 h-5 stroke-[2]" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                Floor Amendment Workflow
-                {activeAmendment && (
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300 animate-pulse">
-                    ACTIVE
-                  </span>
-                )}
-              </h2>
-              <p className="text-xs text-slate-500">
-                {activeBill ? `Target: ${activeBill.bill_number} - ${activeBill.title}` : 'No active bill set'}
-              </p>
-            </div>
+          <div>
+            <h2 className="text-base font-bold text-slate-900 font-serif-editorial flex items-center gap-2">
+              Floor Amendment Workflow
+              {activeAmendment && (
+                <span className="px-2 py-0.5 rounded text-[10px] font-bold font-mono bg-amber-100 text-amber-800 border border-amber-300">
+                  ACTIVE
+                </span>
+              )}
+            </h2>
+            <p className="text-xs text-slate-500 font-mono">
+              {activeBill ? `Target: ${activeBill.bill_number} - ${activeBill.title}` : 'No active bill set'}
+            </p>
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 rounded-full flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
           >
             <X className="w-4 h-4 stroke-[2.5]" />
           </button>
@@ -106,15 +101,13 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
           {activeAmendment ? (
             /* ACTIVE AMENDMENT STATE */
             <div className="space-y-5">
-              <div className="bg-amber-50/80 border border-amber-200 rounded-2xl p-4 sm:p-5 space-y-3">
+              <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-4 sm:p-5 space-y-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-amber-900 font-bold text-sm">
-                    <AlertCircle className="w-4 h-4 text-amber-700" />
-                    <span>Floor Amendment Pending Consideration</span>
+                  <div className="text-amber-900 font-bold text-sm">
+                    Floor Amendment Pending Consideration
                   </div>
-                  <div className="flex items-center gap-1.5 text-xs text-amber-800 font-mono">
-                    <Clock className="w-3.5 h-3.5" />
-                    <span>{activeAmendment.speeches_count} speeches given</span>
+                  <div className="text-xs text-amber-800 font-mono">
+                    {activeAmendment.speeches_count} speeches given
                   </div>
                 </div>
 
@@ -152,20 +145,18 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                   type="button"
                   disabled={submitting}
                   onClick={() => handleConclude(true)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold text-xs shadow-xs transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="px-4 py-3 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold text-xs shadow-xs transition-all active:scale-[0.98] disabled:opacity-50 text-center"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Adopt Amendment (Passed)</span>
+                  Adopt Amendment (Passed)
                 </button>
 
                 <button
                   type="button"
                   disabled={submitting}
                   onClick={() => handleConclude(false)}
-                  className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="px-4 py-3 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs transition-all active:scale-[0.98] disabled:opacity-50 text-center"
                 >
-                  <XCircle className="w-4 h-4" />
-                  <span>Reject Amendment (Failed)</span>
+                  Reject Amendment (Failed)
                 </button>
               </div>
             </div>
@@ -206,10 +197,9 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                 />
               </div>
 
-              <div className="bg-slate-50 rounded-2xl p-3.5 border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
-                <div className="font-bold text-slate-800 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#006948]" />
-                  <span>NSDA Parliamentary Rule Reminder:</span>
+              <div className="bg-slate-50 rounded-xl p-3.5 border border-slate-200/80 text-[11px] text-slate-600 space-y-1">
+                <div className="font-bold text-slate-800">
+                  NSDA Parliamentary Rule Reminder:
                 </div>
                 <p className="leading-relaxed">
                   Floor amendments must be germane and in writing. Upon introducing, the chair immediately entertains debate on the amendment starting with the amendment author or first sponsor.
@@ -227,10 +217,9 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                 <button
                   type="submit"
                   disabled={submitting || !authorId || !amendmentText.trim()}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#006948] hover:bg-[#005137] text-white font-bold text-xs shadow-xs transition-all active:scale-[0.98] disabled:opacity-50"
+                  className="px-5 py-2.5 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold text-xs shadow-xs transition-all active:scale-[0.98] disabled:opacity-50"
                 >
-                  <span>Introduce Floor Amendment</span>
-                  <ArrowRight className="w-4 h-4" />
+                  Introduce Floor Amendment
                 </button>
               </div>
             </form>

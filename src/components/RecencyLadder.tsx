@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import { ListOrdered, MessageSquare, Award } from 'lucide-react';
 import type { Representative } from '../lib/supabase';
 import { sortRepresentatives } from '../lib/precedence';
 
@@ -30,37 +29,34 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
   );
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col h-full min-h-0 overflow-hidden">
+    <div className="rounded-xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col h-full min-h-0 overflow-hidden font-sans">
       {/* Header */}
       <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-white">
-        <span className="font-mono font-bold text-xs text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-          <ListOrdered className="w-3.5 h-3.5 text-emerald-600" />
-          <span>RECENCY LADDER</span>
+        <span className="font-mono font-bold text-xs text-slate-800 uppercase tracking-wider">
+          RECENCY LADDER
         </span>
 
         {/* Tab Toggle */}
         <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 font-mono text-[10.5px]">
           <button
             onClick={() => setMode('speech')}
-            className={`px-2 py-0.5 rounded font-semibold transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-0.5 rounded font-semibold transition-all ${
               mode === 'speech'
                 ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            <Award className="w-3 h-3 text-emerald-600" />
-            <span>Speeches</span>
+            Speeches
           </button>
           <button
             onClick={() => setMode('question')}
-            className={`px-2 py-0.5 rounded font-semibold transition-all flex items-center gap-1 ${
+            className={`px-2.5 py-0.5 rounded font-semibold transition-all ${
               mode === 'question'
                 ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
                 : 'text-slate-500 hover:text-slate-900'
             }`}
           >
-            <MessageSquare className="w-3 h-3 text-slate-600" />
-            <span>Questions</span>
+            Questions
           </button>
         </div>
       </div>
@@ -105,7 +101,7 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
               >
                 {/* Rank */}
                 <div className={`col-span-2 font-mono text-[11px] ${isTopRank ? 'text-emerald-700 font-bold' : isSpeaking ? 'text-amber-700 font-bold' : 'text-slate-400'}`}>
-                  #{rep.rank} {isTopRank && '★'}
+                  #{rep.rank}
                 </div>
 
                 {/* Senator Name & School */}
@@ -140,26 +136,32 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
                 {/* Recency Order */}
                 <div className="col-span-3 text-right font-mono text-[10px] truncate">
                   {mode === 'speech' ? (
-                    rep.last_speech_order > 0 ? (
-                      <span className="text-slate-500">#{rep.last_speech_order}</span>
+                    rep.speeches_count === 0 && rep.last_speech_order > 0 ? (
+                      <span className="text-[#006948] font-bold">#{rep.last_speech_order} (Init)</span>
+                    ) : rep.last_speech_order > 0 ? (
+                      <span className="text-slate-600 font-semibold">#{rep.last_speech_order}</span>
                     ) : (
-                      <span className="text-emerald-700 font-semibold">Never</span>
+                      <span className="text-slate-400 font-medium">Never</span>
                     )
-                  ) : rep.last_question_order > 0 ? (
-                    <span className="text-slate-500">#{rep.last_question_order}</span>
                   ) : (
-                    <span className="text-emerald-700 font-semibold">Never</span>
+                    rep.questions_count === 0 && rep.last_question_order > 0 ? (
+                      <span className="text-[#006948] font-bold">#{rep.last_question_order} (Init)</span>
+                    ) : rep.last_question_order > 0 ? (
+                      <span className="text-slate-600 font-semibold">#{rep.last_question_order}</span>
+                    ) : (
+                      <span className="text-slate-400 font-medium">Never</span>
+                    )
                   )}
                 </div>
 
                 {/* Stand Indicator */}
-                <div className="col-span-1 text-center">
+                <div className="col-span-1 text-center font-mono text-[10px]">
                   {isSpeaking ? (
-                    <span className="w-2 h-2 rounded-full bg-amber-500 inline-block animate-ping" />
+                    <span className="font-bold text-amber-600">SPK</span>
                   ) : isStanding ? (
-                    <span className="w-2 h-2 rounded-full bg-slate-900 inline-block" />
+                    <span className="font-bold text-slate-900">STD</span>
                   ) : (
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-200 inline-block" />
+                    <span className="text-slate-300">-</span>
                   )}
                 </div>
               </div>

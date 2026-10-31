@@ -385,8 +385,8 @@ export const AdminMetricsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="hidden lg:inline-flex items-center gap-2 px-2.5 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px] font-semibold">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <div className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px] font-semibold">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>LIVE CLUSTER ONLINE</span>
             </div>
           </div>
@@ -456,8 +456,8 @@ export const AdminMetricsView: React.FC = () => {
                 <DoorOpen className="w-4 h-4 text-emerald-400" />
                 Active Chambers
               </span>
-              <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
-                ● LIVE
+              <span className="px-1.5 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-[10px] font-bold">
+                LIVE
               </span>
             </div>
 
@@ -677,16 +677,16 @@ export const AdminMetricsView: React.FC = () => {
                         {/* Status Pill */}
                         <td className="py-3.5 px-3">
                           {isLive ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold tracking-wider">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold tracking-wider">
                               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                               LIVE
                             </span>
                           ) : isRecess ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold tracking-wider">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-amber-500/10 text-amber-400 border border-amber-500/30 text-[10px] font-bold tracking-wider">
                               RECESS
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/[0.05] text-neutral-400 border border-white/[0.1] text-[10px] font-bold tracking-wider">
+                            <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-white/[0.05] text-neutral-400 border border-white/[0.1] text-[10px] font-bold tracking-wider">
                               ADJOURNED
                             </span>
                           )}

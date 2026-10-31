@@ -31,12 +31,12 @@ export const chamberService = {
     name: string,
     code: string,
     poPasscode: string,
-    rosterEntries: Array<{ name: string; school: string }>
+    rosterEntries: Array<{ name: string; school: string; initialRecency?: number }>
   ): Promise<{ room: Room; representatives: Representative[] }> {
     const cleanCode = code.trim().toUpperCase();
 
     if (isSupabaseConfigured && supabase) {
-      // 1. Insert room
+      // 1. Insert room with sequence offset matching roster count
       const { data: roomData, error: roomError } = await supabase
         .from('rooms')
         .insert({
@@ -51,8 +51,8 @@ export const chamberService = {
           recess_end_time: null,
           settings: DEFAULT_CHAMBER_SETTINGS,
           active_amendment: null,
-          global_speech_sequence: 0,
-          global_question_sequence: 0,
+          global_speech_sequence: rosterEntries.length,
+          global_question_sequence: rosterEntries.length,
         })
         .select()
         .single();
@@ -61,18 +61,23 @@ export const chamberService = {
         throw new Error(roomError?.message || 'Failed to create room in database');
       }
 
-      // 2. Insert initial representatives
-      const repsToInsert = rosterEntries.map((entry) => ({
-        room_id: roomData.id,
-        name: entry.name.trim(),
-        school: entry.school.trim(),
-        speeches_count: 0,
-        last_speech_order: 0,
-        questions_count: 0,
-        last_question_order: 0,
-        active: true,
-        is_present: true,
-      }));
+      // 2. Insert initial representatives with accurate starting recency orders
+      const repsToInsert = rosterEntries.map((entry, index) => {
+        const recencyNum = entry.initialRecency !== undefined && !isNaN(entry.initialRecency)
+          ? entry.initialRecency
+          : index + 1;
+        return {
+          room_id: roomData.id,
+          name: entry.name.trim(),
+          school: entry.school.trim(),
+          speeches_count: 0,
+          last_speech_order: recencyNum,
+          questions_count: 0,
+          last_question_order: recencyNum,
+          active: true,
+          is_present: true,
+        };
+      });
 
       let insertedReps: Representative[] = [];
       if (repsToInsert.length > 0) {
@@ -102,23 +107,28 @@ export const chamberService = {
         recess_end_time: null,
         settings: DEFAULT_CHAMBER_SETTINGS,
         active_amendment: null,
-        global_speech_sequence: 0,
-        global_question_sequence: 0,
+        global_speech_sequence: rosterEntries.length,
+        global_question_sequence: rosterEntries.length,
         created_at: new Date().toISOString(),
       };
 
-      const newReps: Representative[] = rosterEntries.map((entry) => ({
-        id: 'rep_' + Math.random().toString(36).substring(2, 9),
-        room_id: roomId,
-        name: entry.name.trim(),
-        school: entry.school.trim(),
-        speeches_count: 0,
-        last_speech_order: 0,
-        questions_count: 0,
-        last_question_order: 0,
-        active: true,
-        is_present: true,
-      }));
+      const newReps: Representative[] = rosterEntries.map((entry, index) => {
+        const recencyNum = entry.initialRecency !== undefined && !isNaN(entry.initialRecency)
+          ? entry.initialRecency
+          : index + 1;
+        return {
+          id: 'rep_' + Math.random().toString(36).substring(2, 9),
+          room_id: roomId,
+          name: entry.name.trim(),
+          school: entry.school.trim(),
+          speeches_count: 0,
+          last_speech_order: recencyNum,
+          questions_count: 0,
+          last_question_order: recencyNum,
+          active: true,
+          is_present: true,
+        };
+      });
 
       const existingRooms = getStoredRooms().filter((r) => r.code !== cleanCode);
       saveStoredRooms([...existingRooms, newRoom]);
@@ -227,7 +237,54 @@ export const chamberService = {
   // ==========================================
   // DOCKET / BILLS MANAGEMENT
   // ==========================================
+  getDocketOrder(roomId: string): string[] {
+    try {
+      const raw = localStorage.getItem(`betterpo_docket_order_${roomId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch {}
+    return [];
+  },
+
+  saveDocketOrder(roomId: string, billIds: string[]): void {
+    try {
+      localStorage.setItem(`betterpo_docket_order_${roomId}`, JSON.stringify(billIds));
+    } catch (err) {
+      console.error('Failed to save docket order:', err);
+    }
+  },
+
+  sortBillsByDocketOrder(bills: Bill[], roomId: string): Bill[] {
+    const order = this.getDocketOrder(roomId);
+    if (!order || order.length === 0) return bills;
+
+    const billMap = new Map<string, Bill>();
+    bills.forEach((b) => billMap.set(b.id, b));
+
+    const sorted: Bill[] = [];
+    const seen = new Set<string>();
+
+    for (const id of order) {
+      const bill = billMap.get(id);
+      if (bill) {
+        sorted.push(bill);
+        seen.add(id);
+      }
+    }
+
+    for (const bill of bills) {
+      if (!seen.has(bill.id)) {
+        sorted.push(bill);
+      }
+    }
+
+    return sorted;
+  },
+
   async getBills(roomId: string): Promise<Bill[]> {
+    let rawBills: Bill[] = [];
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase
         .from('bills')
@@ -237,12 +294,14 @@ export const chamberService = {
 
       if (error) {
         console.error('Error fetching bills:', error);
-        return [];
+        rawBills = [];
+      } else {
+        rawBills = (data || []) as Bill[];
       }
-      return (data || []) as Bill[];
     } else {
-      return getStoredBills(roomId);
+      rawBills = getStoredBills(roomId);
     }
+    return this.sortBillsByDocketOrder(rawBills, roomId);
   },
 
   async addBill(
@@ -388,20 +447,25 @@ export const chamberService = {
 
   async addRepresentatives(
     roomId: string,
-    entries: Array<{ name: string; school: string }>
+    entries: Array<{ name: string; school: string; initialRecency?: number }>
   ): Promise<Representative[]> {
     if (isSupabaseConfigured && supabase) {
-      const toInsert = entries.map((e) => ({
-        room_id: roomId,
-        name: e.name.trim(),
-        school: e.school.trim(),
-        speeches_count: 0,
-        last_speech_order: 0,
-        questions_count: 0,
-        last_question_order: 0,
-        active: true,
-        is_present: true,
-      }));
+      const toInsert = entries.map((e, index) => {
+        const recencyNum = e.initialRecency !== undefined && !isNaN(e.initialRecency)
+          ? e.initialRecency
+          : index + 1;
+        return {
+          room_id: roomId,
+          name: e.name.trim(),
+          school: e.school.trim(),
+          speeches_count: 0,
+          last_speech_order: recencyNum,
+          questions_count: 0,
+          last_question_order: recencyNum,
+          active: true,
+          is_present: true,
+        };
+      });
 
       const { data, error } = await supabase
         .from('representatives')
@@ -411,22 +475,43 @@ export const chamberService = {
       if (error) throw error;
       return (data || []) as Representative[];
     } else {
-      const newReps: Representative[] = entries.map((e) => ({
-        id: 'rep_' + Math.random().toString(36).substring(2, 9),
-        room_id: roomId,
-        name: e.name.trim(),
-        school: e.school.trim(),
-        speeches_count: 0,
-        last_speech_order: 0,
-        questions_count: 0,
-        last_question_order: 0,
-        active: true,
-        is_present: true,
-      }));
+      const newReps: Representative[] = entries.map((e, index) => {
+        const recencyNum = e.initialRecency !== undefined && !isNaN(e.initialRecency)
+          ? e.initialRecency
+          : index + 1;
+        return {
+          id: 'rep_' + Math.random().toString(36).substring(2, 9),
+          room_id: roomId,
+          name: e.name.trim(),
+          school: e.school.trim(),
+          speeches_count: 0,
+          last_speech_order: recencyNum,
+          questions_count: 0,
+          last_question_order: recencyNum,
+          active: true,
+          is_present: true,
+        };
+      });
 
       const existing = getStoredReps();
       saveStoredReps([...existing, ...newReps]);
       return newReps;
+    }
+  },
+
+  async updateRepresentativeRecency(repId: string, recency: number): Promise<void> {
+    if (isSupabaseConfigured && supabase) {
+      const { error } = await supabase
+        .from('representatives')
+        .update({ last_speech_order: recency, last_question_order: recency })
+        .eq('id', repId);
+      if (error) throw error;
+    } else {
+      const stored = getStoredReps();
+      const updated = stored.map((r) =>
+        r.id === repId ? { ...r, last_speech_order: recency, last_question_order: recency } : r
+      );
+      saveStoredReps(updated);
     }
   },
 

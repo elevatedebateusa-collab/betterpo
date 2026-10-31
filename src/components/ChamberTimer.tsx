@@ -8,8 +8,6 @@ import {
   Volume2, 
   VolumeX, 
   ShieldAlert, 
-  Mic, 
-  Coffee, 
   Gavel 
 } from 'lucide-react';
 import { 
@@ -20,6 +18,16 @@ import {
 } from '../lib/supabase';
 import type { TimerBroadcastPayload } from '../lib/supabase';
 import { chamberService } from '../lib/chamberService';
+
+function extractLastName(fullName: string | null | undefined): string {
+  if (!fullName) return '';
+  const trimmed = fullName.trim();
+  if (trimmed.includes(',')) {
+    return trimmed.split(',')[0].trim();
+  }
+  const parts = trimmed.split(/\s+/);
+  return parts[parts.length - 1];
+}
 
 interface ChamberTimerProps {
   roomCode: string;
@@ -311,66 +319,52 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     : (secondsLeft < -10 && mode === 'speech');
 
   return (
-    <div className={`rounded-xl p-4 border transition-all duration-200 relative ${
+    <div className={`transition-all duration-200 relative ${
       mode === 'recess'
-        ? 'bg-amber-50/70 border-amber-300'
+        ? 'text-amber-900'
         : isExpired
-        ? 'bg-rose-50/80 border-rose-400 ring-1 ring-rose-300 animate-pulse'
+        ? 'text-rose-900'
         : isGrace
-        ? 'bg-amber-50/70 border-amber-300 ring-1 ring-amber-200'
-        : 'bg-white border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)]'
+        ? 'text-amber-900'
+        : 'text-slate-900'
     }`}>
-      {/* Top Banner: Floor Occupant or Recess Banner */}
-      <div className="flex items-center justify-between pb-2.5 mb-2.5 border-b border-slate-100">
+      {/* Top Banner: Speaking [Last Name] or Floor Clear */}
+      <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <div className={`p-1.5 rounded-lg border ${
-            mode === 'recess'
-              ? 'bg-amber-500 text-white border-amber-600'
-              : isExpired
-              ? 'bg-rose-600 text-white border-rose-700'
-              : isGrace
-              ? 'bg-amber-500 text-white border-amber-600'
-              : 'bg-slate-100 text-slate-700 border-slate-200'
-          }`}>
-            {mode === 'recess' ? <Coffee className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-          </div>
-          <div>
-            <div className="text-[10px] uppercase font-mono font-bold tracking-wider text-slate-400">
-              {mode === 'recess' ? 'CHAMBER RECESS' : 'FLOOR OCCUPANT'}
-            </div>
-            <div className="text-sm font-serif-editorial font-bold text-slate-900 flex items-center gap-2">
-              <span>{mode === 'recess' ? 'Chamber in Recess / Caucus' : speakerName || 'Floor Open'}</span>
-              {speakerName && isPO && mode !== 'recess' && (
-                <button
-                  onClick={onClearSpeaker}
-                  className="text-[10px] text-rose-600 hover:underline font-mono"
-                >
-                  Clear
-                </button>
-              )}
-            </div>
-          </div>
+          <span className="text-base font-serif-editorial font-bold text-slate-900 tracking-tight">
+            {mode === 'recess'
+              ? 'Chamber in Recess'
+              : speakerName
+              ? `Speaking ${extractLastName(speakerName)}`
+              : 'Floor Clear'}
+          </span>
+          {speakerName && isPO && mode !== 'recess' && (
+            <button
+              onClick={onClearSpeaker}
+              className="text-[11px] text-slate-400 hover:text-rose-600 font-mono transition-colors"
+              title="Clear speaker"
+            >
+              (Clear)
+            </button>
+          )}
         </div>
 
         {/* Gavel Cues Visual Indicators & Sound Toggle */}
         <div className="flex items-center gap-2">
           {gavelCueFlash !== null && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-600 text-white text-xs font-mono font-bold animate-bounce shadow-sm">
-              <Gavel className="w-3.5 h-3.5" />
+            <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-xs font-mono font-bold animate-bounce shadow-sm">
               <span>{gavelCueFlash} Tap{gavelCueFlash > 1 ? 's' : ''}</span>
             </span>
           )}
 
           {isGrace && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-500 text-white text-xs font-mono font-bold animate-pulse shadow-sm">
-              <ShieldAlert className="w-3.5 h-3.5" />
+            <span className="px-2 py-0.5 rounded bg-amber-500 text-white text-xs font-mono font-bold animate-pulse shadow-sm">
               <span>Grace ({duration === 190 ? secondsLeft : 10 + secondsLeft}s)</span>
             </span>
           )}
 
           {isExpired && (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-rose-600 text-white text-xs font-mono font-bold shadow-sm">
-              <ShieldAlert className="w-3.5 h-3.5" />
+            <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-xs font-mono font-bold shadow-sm">
               <span>Gavel Down</span>
             </span>
           )}
@@ -403,7 +397,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
             </span>
             <span>•</span>
             <span className={isRunning ? 'text-emerald-700 font-semibold' : 'text-slate-400'}>
-              {isRunning ? '● Running' : 'Standby'}
+              {isRunning ? 'Running' : 'Standby'}
             </span>
           </div>
         </div>
