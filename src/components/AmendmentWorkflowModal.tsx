@@ -1,14 +1,5 @@
 import React, { useState } from 'react';
-import { 
-  X, 
-  FileEdit, 
-  AlertCircle, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  ArrowRight,
-  Sparkles
-} from 'lucide-react';
+import { X } from 'lucide-react';
 import type { Room, Representative, Bill } from '../lib/supabase';
 
 interface AmendmentWorkflowModalProps {

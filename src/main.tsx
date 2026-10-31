@@ -34,6 +34,7 @@ if (!rootElement) {
 } else {
   try {
     const root = createRoot(rootElement);
+    (window as unknown as { __REACT_HYDRATED__?: boolean }).__REACT_HYDRATED__ = true;
     root.render(
       <StrictMode>
         <App />

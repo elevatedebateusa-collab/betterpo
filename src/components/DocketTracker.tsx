@@ -1,14 +1,9 @@
 import React, { useState } from 'react';
 import { 
-  Plus, 
-  Play, 
   X, 
-  AlertTriangle,
-  RotateCcw,
-  BookOpen,
-  ChevronUp,
-  ChevronDown,
-  GripVertical
+  ChevronUp, 
+  ChevronDown, 
+  GripVertical 
 } from 'lucide-react';
 import type { Bill, Room } from '../lib/supabase';
 

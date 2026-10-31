@@ -1,16 +1,10 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
-  Sparkles, 
   Search, 
-  XCircle, 
   EyeOff, 
   Eye, 
-  HelpCircle,
-  MapPin,
-  MapPinOff,
-  UserCheck,
-  LayoutGrid,
-  RotateCcw
+  MapPin, 
+  MapPinOff 
 } from 'lucide-react';
 import type { Representative } from '../lib/supabase';
 import { resolveStandingWinner } from '../lib/precedence';

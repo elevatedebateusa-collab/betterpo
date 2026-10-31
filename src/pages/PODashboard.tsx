@@ -2,17 +2,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   RotateCcw, 
-  Download, 
-  UserPlus, 
   Lock, 
-  FileText, 
   AlertCircle, 
-  Sparkles, 
-  Award,
-  BookOpen,
-  Settings,
-  FileEdit,
-  Vote
+  Award
 } from 'lucide-react';
 import { chamberService } from '../lib/chamberService';
 import { 

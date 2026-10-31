@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { UserPlus, X, AlertCircle, Plus, Trash2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import { parseTabroomRecencyList, type ParsedSenator } from '../lib/rosterParser';
 
 interface RosterImportModalProps {

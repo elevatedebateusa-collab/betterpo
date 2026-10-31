@@ -6,9 +6,7 @@ import {
   Plus, 
   Minus, 
   Volume2, 
-  VolumeX, 
-  ShieldAlert, 
-  Gavel 
+  VolumeX 
 } from 'lucide-react';
 import { 
   supabase, 
