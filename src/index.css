@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-[#0A1128];
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    min-height: 100vh;
+    user-select: none;
+    overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  ::selection {
+    background-color: rgba(16, 185, 129, 0.25);
+    color: #065f46;
+  }
+}
+
+/* Tri-font typographic helpers */
+.font-serif-editorial {
+  font-family: 'Newsreader', 'Playfair Display', Georgia, serif;
+}
+
+.font-mono-telemetry {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+
+.font-sans-humanist {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* Mac OS Style Traffic Dots */
+.traffic-dot-red {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: #FF5F56;
+  border: 1px solid rgba(224, 68, 62, 0.4);
+}
+
+.traffic-dot-yellow {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: #FFBD2E;
+  border: 1px solid rgba(222, 161, 35, 0.4);
+}
+
+.traffic-dot-green {
+  width: 10px;
+  height: 10px;
+  border-radius: 9999px;
+  background-color: #27C93F;
+  border: 1px solid rgba(26, 171, 41, 0.4);
+}
+
+/* Minimalist Hairline Borders */
+.hairline-border {
+  border: 1px solid #E2E8F0;
+}
+
+.hairline-border-subtle {
+  border: 1px solid #F1F5F9;
+}
+
+/* Clean Custom Scrollbar */
+::-webkit-scrollbar,
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track,
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+
+::-webkit-scrollbar-thumb,
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+/* ========================================================
+   GAVEL SLAM & "ELEVATED" EMERGENCE ANIMATION KEYFRAMES
+   ======================================================== */
+@keyframes gavelSlam {
+  0% {
+    transform: rotate(-60deg) translate(-28px, -45px);
+    opacity: 0.9;
+  }
+  25% {
+    transform: rotate(-65deg) translate(-32px, -50px);
+  }
+  55% {
+    transform: rotate(6deg) translate(0px, 4px);
+  }
+  70% {
+    transform: rotate(-4deg) translate(-2px, -4px);
+  }
+  85% {
+    transform: rotate(2deg) translate(0px, 1px);
+  }
+  100% {
+    transform: rotate(0deg) translate(0, 0);
+    opacity: 1;
+  }
+}
+
+@keyframes blockImpact {
+  0%, 50% {
+    transform: scale(1) translateY(0);
+  }
+  55% {
+    transform: scale(0.94, 0.88) translateY(3px);
+  }
+  70% {
+    transform: scale(1.04, 1.02) translateY(-2px);
+  }
+  85% {
+    transform: scale(0.98, 0.99) translateY(0px);
+  }
+  100% {
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes impactShockwave {
+  0%, 50% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  56% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+@keyframes dustPuffLeft {
+  0%, 52% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+  56% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(-36px, -18px) scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes dustPuffRight {
+  0%, 52% {
+    transform: translate(0, 0) scale(0);
+    opacity: 0;
+  }
+  56% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(36px, -18px) scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes elevatedEmerge {
+  0%, 50% {
+    transform: translateY(32px) scale(0.7);
+    opacity: 0;
+    filter: blur(4px);
+  }
+  60% {
+    opacity: 0.4;
+    filter: blur(2px);
+  }
+  78% {
+    transform: translateY(-8px) scale(1.08);
+    opacity: 1;
+    filter: blur(0);
+  }
+  90% {
+    transform: translateY(2px) scale(0.98);
+  }
+  100% {
+    transform: translateY(0px) scale(1);
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.animate-gavel-slam {
+  animation: gavelSlam 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  transform-origin: 85% 85%;
+}
+
+.animate-block-impact {
+  animation: blockImpact 0.9s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-shockwave {
+  animation: impactShockwave 0.8s ease-out forwards;
+}
+
+.animate-dust-left {
+  animation: dustPuffLeft 0.8s ease-out forwards;
+}
+
+.animate-dust-right {
+  animation: dustPuffRight 0.8s ease-out forwards;
+}
+
+.animate-elevated-emerge {
+  animation: elevatedEmerge 1.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn,
+.animate-fade-in {
+  animation: fadeIn 0.25s ease-out forwards;
+}

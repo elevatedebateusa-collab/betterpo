@@ -1,0 +1,55 @@
+/** @type {import('tailwindcss').Config} */
+export default {
+  darkMode: "class",
+  content: [
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  theme: {
+    extend: {
+      colors: {
+        "parchment": "#FBF7EE",
+        "parchment-card": "#FFFDF9",
+        "parchment-shade": "#F3EBDD",
+        "parchment-dark": "#E7DCBC",
+        "kraft": "#EADEC8",
+        "charcoal": "#24211E",
+        "pencil": "#4B453F",
+        "lead-light": "#746C65",
+        "faded-ink": "#8C837A",
+        "terracotta": "#C85A32",
+        "terracotta-dark": "#9F3C16",
+        "terracotta-soft": "#F8EAE4",
+        "sage": "#3F6848",
+        "sage-dark": "#2A4B31",
+        "sage-soft": "#EBF3EC",
+        "pen-blue": "#26547C",
+        "pen-blue-soft": "#E8EFF5",
+        "ochre": "#C28522",
+        "ochre-soft": "#FAF2E4",
+        slate: {
+          850: '#172033',
+          900: '#0f172a',
+          950: '#070d19',
+          975: '#090a0f',
+        },
+      },
+      fontFamily: {
+        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "Space Mono", "monospace"],
+        serif: ["Literata", "Georgia", "serif"],
+        hand: ["Patrick Hand", "Caveat", "cursive"],
+        script: ["Caveat", "cursive"],
+        type: ["'JetBrains Mono'", "Space Mono", "monospace"],
+      },
+      boxShadow: {
+        paper: "2px 3px 0px rgba(60, 48, 38, 0.12)",
+        "paper-md": "3px 4px 0px rgba(60, 48, 38, 0.15), 0 8px 16px -4px rgba(60,48,38,0.06)",
+        "paper-lg": "4px 6px 0px rgba(60, 48, 38, 0.18)",
+        stamp: "inset 0 0 0 1.5px rgba(200, 90, 50, 0.6), 2px 2px 0px rgba(60, 48, 38, 0.15)",
+        pressed: "inset 2px 2px 3px rgba(60, 48, 38, 0.15)",
+      },
+    },
+  },
+  plugins: [],
+}

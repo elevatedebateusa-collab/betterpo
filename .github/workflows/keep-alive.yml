@@ -1,0 +1,44 @@
+name: Supabase Keep-Alive & 14-Day Chamber Purge
+
+on:
+  schedule:
+    # Runs at 12:00 UTC every Monday and Thursday (twice weekly)
+    # Guaranteed to prevent Supabase Free Tier 7-day inactivity project pause
+    - cron: '0 12 * * 1,4'
+  workflow_dispatch:
+
+jobs:
+  keep_alive_and_cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST Endpoint (Keep-Alive)
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::warning ::VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY secret is not set. Skipping keep-alive ping."
+            exit 0
+          fi
+          echo "Pinging Supabase platform_metrics endpoint..."
+          RESPONSE=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X GET "${SUPABASE_URL}/rest/v1/platform_metrics?select=*" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}")
+          echo "Response: $RESPONSE"
+
+      - name: Trigger 14-Day Storage Cleanup RPC (cleanup_expired_rooms)
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "::warning ::VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY secret is not set. Skipping cleanup RPC."
+            exit 0
+          fi
+          echo "Invoking cleanup_expired_rooms() RPC..."
+          CLEANUP_RESP=$(curl -s -w "\nHTTP_STATUS:%{http_code}" -X POST "${SUPABASE_URL}/rest/v1/rpc/cleanup_expired_rooms" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}" \
+            -H "Content-Type: application/json")
+          echo "Cleanup RPC result: $CLEANUP_RESP"
+
