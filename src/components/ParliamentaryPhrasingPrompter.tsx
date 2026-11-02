@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState } from 'react';
 import { 
   Volume2, 
@@ -124,59 +125,17 @@ export const ParliamentaryPhrasingPrompter: React.FC<ParliamentaryPhrasingPrompt
 
         <div className="flex items-center gap-1.5">
           {/* Quick Category Tabs */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => setSelectedCategory('recognize')}
-              className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                currentTab === 'recognize'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-              title="Recognizing Speaker"
-            >
-              <Mic className="w-3 h-3" />
-              <span className="hidden md:inline">Speaker</span>
-            </button>
-
-            <button
-              onClick={() => setSelectedCategory('cross_ex')}
-              className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                currentTab === 'cross_ex'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-              title="Calling Questioners"
-            >
-              <Users className="w-3 h-3" />
-              <span className="hidden md:inline">Cross-Ex</span>
-            </button>
-
-            <button
-              onClick={() => setSelectedCategory('vote')}
-              className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                currentTab === 'vote'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-              title="Taking Votes"
-            >
-              <Vote className="w-3 h-3" />
-              <span className="hidden md:inline">Vote</span>
-            </button>
-
-            <button
-              onClick={() => setSelectedCategory('open_floor')}
-              className={`px-2 py-1 rounded text-[11px] font-semibold transition-colors flex items-center gap-1 ${
-                currentTab === 'open_floor'
-                  ? 'bg-amber-500 text-slate-950 shadow-sm'
-                  : 'text-slate-400 hover:text-white hover:bg-slate-800'
-              }`}
-              title="Open Floor"
-            >
-              <Compass className="w-3 h-3" />
-              <span className="hidden md:inline">Floor</span>
-            </button>
-          </div>
+          <SelectionGroup<PhrasingCategory>
+            aria-label="Parliamentary phrasing category" value={currentTab} onValueChange={setSelectedCategory}
+            size="xs" variant="button" className="selection-group--dark"
+            options={[
+              { value: 'recognize', label: <><Mic /><span className="hidden md:inline">Speaker</span></>, title: 'Recognizing Speaker' },
+              { value: 'cross_ex', label: <><Users /><span className="hidden md:inline">Cross-Ex</span></>, title: 'Calling Questioners' },
+              { value: 'vote', label: <><Vote /><span className="hidden md:inline">Vote</span></>, title: 'Taking Votes' },
+              { value: 'open_floor', label: <><Compass /><span className="hidden md:inline">Floor</span></>, title: 'Open Floor' },
+              ...(activeAmendment ? [{ value: 'amendment' as const, label: 'Amendment', title: 'Amendment Debate' }] : []),
+            ]}
+          />
 
           <button
             onClick={() => setIsCollapsed(!isCollapsed)}

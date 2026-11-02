@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState } from 'react';
 import type { Representative } from '../lib/supabase';
 import { sortRepresentatives } from '../lib/precedence';
@@ -37,28 +38,10 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
         </span>
 
         {/* Tab Toggle */}
-        <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 font-mono text-[10.5px]">
-          <button
-            onClick={() => setMode('speech')}
-            className={`px-2.5 py-0.5 rounded font-semibold transition-all ${
-              mode === 'speech'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Speeches
-          </button>
-          <button
-            onClick={() => setMode('question')}
-            className={`px-2.5 py-0.5 rounded font-semibold transition-all ${
-              mode === 'question'
-                ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Questions
-          </button>
-        </div>
+        <SelectionGroup
+          aria-label="Recency ladder mode" value={mode} onValueChange={setMode} size="xs"
+          options={[{ value: 'speech', label: 'Speeches' }, { value: 'question', label: 'Questions' }]}
+        />
       </div>
 
       {/* Table Column Headers */}

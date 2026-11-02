@@ -33,6 +33,80 @@
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
+/* Reference typography: a neutral Helvetica/Arial-style face in regular weight.
+   Keep this outside Tailwind layers so title/action utilities cannot restore
+   the previous bold serif or widely tracked button styling. */
+:root {
+  --background: 0 0% 100%;
+  --foreground: 224 60% 10%;
+  --primary: 161 100% 21%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 210 40% 96%;
+  --secondary-foreground: 215 25% 27%;
+  --accent: 210 30% 96%;
+  --accent-foreground: 215 25% 27%;
+  --muted: 210 40% 96%;
+  --muted-foreground: 215 16% 40%;
+  --border: 214 32% 88%;
+  --ring: 161 100% 21%;
+  --destructive: 0 72% 51%;
+  --destructive-foreground: 0 0% 100%;
+  --font-title-action: Arial, 'Helvetica Neue', Helvetica, sans-serif;
+  --font-button: 'Lato', 'Segoe UI', Arial, sans-serif;
+}
+
+:is(h1, h2, h3, h4, h5, h6, .font-serif-editorial) {
+  font-family: var(--font-title-action);
+  font-weight: 400;
+  font-style: normal;
+  font-feature-settings: normal;
+  letter-spacing: -0.025em;
+}
+
+:is(button, [role='button'], input[type='button'], input[type='submit'], input[type='reset']) {
+  font-family: var(--font-button);
+  font-weight: 400;
+  font-style: normal;
+  font-feature-settings: normal;
+  letter-spacing: normal;
+}
+
+:is(button, [role='button']) :is(span, .font-sans, .font-mono, .font-serif-editorial) {
+  font-family: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  letter-spacing: inherit;
+}
+
+/* Radio selections share the supplied tabs' active appearance. */
+.selection-group [data-slot='selection-trigger'][data-state='checked'] {
+  color: hsl(var(--foreground));
+}
+.selection-group[data-variant='default'] [data-slot='selection-trigger'][data-state='checked'] {
+  background: hsl(var(--background));
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.08);
+}
+.selection-group[data-variant='button'] [data-slot='selection-trigger'][data-state='checked'] {
+  background: hsl(var(--accent));
+}
+.selection-group[data-variant='line'] [data-slot='selection-trigger'][data-state='checked'] {
+  border-bottom-color: hsl(var(--primary));
+  color: hsl(var(--primary));
+}
+.selection-group [data-slot='selection-trigger'][data-state='checked'] svg {
+  color: hsl(var(--primary));
+}
+.selection-group--dark {
+  --background: 222 25% 14%;
+  --foreground: 0 0% 98%;
+  --accent: 222 20% 19%;
+  --accent-foreground: 215 20% 80%;
+  --muted-foreground: 215 16% 70%;
+  --primary: 158 64% 52%;
+  --ring: 158 64% 52%;
+  --border: 215 20% 28%;
+}
+
 /* Mac OS Style Traffic Dots */
 .traffic-dot-red {
   width: 10px;

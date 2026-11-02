@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -54,6 +55,12 @@ export const PODashboard: React.FC = () => {
   const [showAuditLogFull, setShowAuditLogFull] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [timerAutoTrigger, setTimerAutoTrigger] = useState<number>(0);
+  const [timerConfig, setTimerConfig] = useState<{
+    mode: 'speech' | 'question' | 'dq';
+    duration: number;
+    questionerName?: string | null;
+  }>({ mode: 'speech', duration: 190 });
+  const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
   // Vote Calculator & Previous Question (PQ) State
   const [showVoteModal, setShowVoteModal] = useState<boolean>(false);
@@ -65,6 +72,17 @@ export const PODashboard: React.FC = () => {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleCopyCode = () => {
+    const codeToCopy = room?.code || code;
+    if (!codeToCopy) return;
+    const url = `${window.location.origin}/room/${codeToCopy}`;
+    navigator.clipboard.writeText(url).catch(() => {
+      navigator.clipboard.writeText(codeToCopy);
+    });
+    setCopiedCode(true);
+    setTimeout(() => setCopiedCode(false), 2000);
   };
 
   // 1. Initial Chamber Load & Auth Verification
@@ -255,6 +273,28 @@ export const PODashboard: React.FC = () => {
     return { nextSpeechDisplay: display, nextSpeechSide: side, affCount, negCount };
   }, [roundEvents, activeBill?.id, room?.last_speech_side]);
 
+  // Check if current speech on floor is Authorship / First Sponsorship
+  const isCurrentAuthorshipSpeech = useMemo(() => {
+    const billEvents = roundEvents.filter((e) => {
+      if (activeBill?.id && e.bill_id) {
+        return e.bill_id === activeBill.id;
+      }
+      return true;
+    });
+
+    const speechEvents = billEvents.filter((e) => e.event_type.startsWith('speech_'));
+    if (speechEvents.length === 0) {
+      return true;
+    }
+
+    const latestSpeech = speechEvents[0];
+    return (
+      latestSpeech.event_type === 'speech_author' ||
+      latestSpeech.event_type === 'speech_sponsor' ||
+      speechEvents.length === 1
+    );
+  }, [roundEvents, activeBill]);
+
   // Toggle standing state for a debater
   const handleToggleStanding = (id: string) => {
     setStandingIds((prev) => {
@@ -403,10 +443,26 @@ export const PODashboard: React.FC = () => {
       setStandingIds(new Set());
 
       if (isSpeech) {
+        setTimerConfig({ mode: 'speech', duration: 190 });
         setTimerAutoTrigger((prev) => prev + 1);
-      }
+        showToast(`Recognized ${rep.name} for ${eventType.replace('speech_', '').toUpperCase()}`);
+      } else if (eventType === 'question') {
+        const cxDuration = isCurrentAuthorshipSpeech
+          ? (room.settings?.author_cx_duration ?? 120)
+          : (room.settings?.regular_cx_duration ?? 60);
 
-      showToast(`Recognized ${rep.name} for ${eventType.replace('speech_', '').toUpperCase()}`);
+        setTimerConfig({
+          mode: 'question',
+          duration: cxDuration,
+          questionerName: rep.name,
+        });
+        setTimerAutoTrigger((prev) => prev + 1);
+        showToast(
+          `Recognized ${rep.name} for QUESTION (${isCurrentAuthorshipSpeech ? 'Author CX • 2:00' : 'Regular CX • 1:00'})`
+        );
+      } else {
+        showToast(`Recognized ${rep.name} for ${eventType.replace('speech_', '').toUpperCase()}`);
+      }
     } catch (err: unknown) {
       showToast(err instanceof Error ? err.message : 'Error awarding action');
     }
@@ -697,14 +753,27 @@ export const PODashboard: React.FC = () => {
           TOP NAVIGATION BAR
           ======================================================== */}
       <header className="border-b border-[#CBD5E1]/80 bg-white/95 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-6 h-14 flex items-center justify-between gap-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
-        {/* Left: Brand Only */}
-        <div 
-          onClick={() => navigate('/')}
-          className="flex items-center cursor-pointer group"
-        >
-          <span className="font-mono font-bold text-sm tracking-wider uppercase text-[#0A1128] group-hover:opacity-80 transition-opacity">
-            better<span className="text-[#006948]">po</span>
-          </span>
+        {/* Left: Brand & Chamber Code */}
+        <div className="flex items-center gap-3">
+          <div 
+            onClick={() => navigate('/')}
+            className="flex items-center cursor-pointer group"
+          >
+            <span className="font-mono font-bold text-sm tracking-wider uppercase text-[#0A1128] group-hover:opacity-80 transition-opacity">
+              better<span className="text-[#006948]">po</span>
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={handleCopyCode}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-[#CBD5E1] text-xs font-mono transition-colors cursor-pointer"
+            title="Click to copy room link"
+          >
+            <span className="text-slate-400 font-medium">Code:</span>
+            <span className="font-bold text-slate-900 tracking-wider uppercase">{room?.code || code}</span>
+            {copiedCode && <span className="text-[10px] text-[#006948] font-bold">Copied!</span>}
+          </button>
         </div>
 
         {/* Right: Exactly Requested Controls */}
@@ -844,28 +913,11 @@ export const PODashboard: React.FC = () => {
               </div>
 
               {/* Mode Toggle for Floor Evaluation */}
-              <div className="flex items-center bg-slate-50 border border-[#CBD5E1] rounded-xl p-0.5 font-mono text-xs self-start sm:self-auto">
-                <button
-                  onClick={() => setFloorMode('speech')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    floorMode === 'speech'
-                      ? 'bg-white text-[#006948] shadow-xs border border-slate-200/60'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Speech Calls
-                </button>
-                <button
-                  onClick={() => setFloorMode('question')}
-                  className={`px-3 py-1 rounded-lg font-bold transition-all ${
-                    floorMode === 'question'
-                      ? 'bg-white text-[#006948] shadow-xs border border-slate-200/60'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  Question Calls
-                </button>
-              </div>
+              <SelectionGroup
+                aria-label="Floor recognition mode" value={floorMode} onValueChange={setFloorMode}
+                className="self-start sm:self-auto"
+                options={[{ value: 'speech', label: 'Speech Calls' }, { value: 'question', label: 'Question Calls' }]}
+              />
             </div>
 
             {/* The Spatial Floor Grid Component */}
@@ -983,6 +1035,8 @@ export const PODashboard: React.FC = () => {
                 chamberService.updateRoom(room.id, { current_speaker_id: null })
               }
               autoStartTrigger={timerAutoTrigger}
+              autoStartConfig={timerConfig}
+              questionerName={timerConfig.mode === 'question' ? timerConfig.questionerName : null}
               onRecessChange={(isRecess) =>
                 handleStatusChange(isRecess ? 'recess' : 'in_session')
               }
@@ -1034,32 +1088,63 @@ export const PODashboard: React.FC = () => {
                 )}
 
                 {/* Instant Award Action Buttons */}
-                <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-xs">
-                  <button
-                    onClick={() => handleAwardAction(winner, 'speech_aff')}
-                    className="py-2.5 px-3 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-[#006948] border border-emerald-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
-                  >
-                    Give Aff
-                  </button>
-                  <button
-                    onClick={() => handleAwardAction(winner, 'speech_neg')}
-                    className="py-2.5 px-3 rounded-xl font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
-                  >
-                    Give Neg
-                  </button>
-                  <button
-                    onClick={() => handleAwardAction(winner, 'speech_author')}
-                    className="py-2.5 px-3 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px] whitespace-nowrap"
-                  >
-                    Author / Sponsor
-                  </button>
-                  <button
-                    onClick={() => handleAwardAction(winner, 'question')}
-                    className="py-2.5 px-3 rounded-xl font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
-                  >
-                    Give Question
-                  </button>
-                </div>
+                {floorMode === 'question' ? (
+                  <div className="space-y-2 pt-1 font-mono text-xs">
+                    <button
+                      onClick={() => handleAwardAction(winner, 'question')}
+                      className="w-full py-3 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs"
+                    >
+                      Give Question ({isCurrentAuthorshipSpeech ? 'Author CX • 2:00' : 'Regular CX • 1:00'})
+                    </button>
+                    <div className="grid grid-cols-3 gap-2">
+                      <button
+                        onClick={() => handleAwardAction(winner, 'speech_aff')}
+                        className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
+                      >
+                        Aff
+                      </button>
+                      <button
+                        onClick={() => handleAwardAction(winner, 'speech_neg')}
+                        className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
+                      >
+                        Neg
+                      </button>
+                      <button
+                        onClick={() => handleAwardAction(winner, 'speech_author')}
+                        className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
+                      >
+                        Author
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-xs">
+                    <button
+                      onClick={() => handleAwardAction(winner, 'speech_aff')}
+                      className="py-2.5 px-3 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-[#006948] border border-emerald-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                    >
+                      Give Aff
+                    </button>
+                    <button
+                      onClick={() => handleAwardAction(winner, 'speech_neg')}
+                      className="py-2.5 px-3 rounded-xl font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                    >
+                      Give Neg
+                    </button>
+                    <button
+                      onClick={() => handleAwardAction(winner, 'speech_author')}
+                      className="py-2.5 px-3 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px] whitespace-nowrap"
+                    >
+                      Author / Sponsor
+                    </button>
+                    <button
+                      onClick={() => handleAwardAction(winner, 'question')}
+                      className="py-2.5 px-3 rounded-xl font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                    >
+                      Give Question ({isCurrentAuthorshipSpeech ? '2:00' : '1:00'})
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center font-mono text-xs text-slate-500">

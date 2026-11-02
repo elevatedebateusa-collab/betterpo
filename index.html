@@ -41,7 +41,7 @@
     <!-- Typography (Google Fonts) -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..800&family=Playfair+Display:wght@600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&family=Lato:wght@400&family=Newsreader:ital,opsz,wght@0,6..72,400..800;1,6..72,400..800&family=Playfair+Display:wght@600;700;800&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 
     <!-- JSON-LD Structured Data Schema Graph (WebApplication + FAQPage + BreadcrumbList) -->
     <script type="application/ld+json">
@@ -173,29 +173,32 @@
   </head>
   <body class="bg-[#FCFBF7] text-[#0A1128] min-h-screen">
     
+    <!-- Application Root Container: Kept completely clean to ensure seamless animated entry -->
+    <div id="root"></div>
+
     <!-- 
-      Semantic Crawler Fallback inside #root:
-      Provides comprehensive keyword-rich semantic HTML that search bots (Googlebot) and 
-      AI RAG retrievers (GPTBot, ClaudeBot, PerplexityBot) parse immediately upon HTTP GET.
-      When the client-side React SPA loads, createRoot seamlessly replaces this content.
+      Semantic Crawler Fallback inside <noscript>:
+      Provides rich structured semantic HTML for search crawlers (Googlebot, Bingbot) and 
+      AI RAG retrievers (GPTBot, ClaudeBot, PerplexityBot) without causing any visual flash (FOUC) 
+      in standard browsers.
     -->
-    <div id="root">
-      <main class="max-w-4xl mx-auto p-6 font-sans">
-        <header class="border-b border-slate-200 pb-4 mb-6">
-          <h1 class="text-3xl font-bold text-slate-900">BetterPO — Congressional Debate Presiding Officer Tool</h1>
-          <p class="text-base text-slate-600 mt-2">
+    <noscript>
+      <main style="max-width: 800px; margin: 40px auto; padding: 24px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; line-height: 1.6;">
+        <header style="border-bottom: 1px solid #e2e8f0; padding-bottom: 16px; margin-bottom: 24px;">
+          <h1 style="font-size: 28px; font-weight: bold; color: #0f172a; margin: 0 0 8px 0;">BetterPO — Congressional Debate Presiding Officer Tool</h1>
+          <p style="font-size: 15px; color: #475569; margin: 0;">
             The free, zero-AI, tournament-legal web application for high school and collegiate Congressional Debate Presiding Officers (POs), debaters, and chambers. Developed by <strong>Elevate Debate (Elevate the Circuit)</strong>.
           </p>
         </header>
 
-        <section class="space-y-4 mb-8">
-          <h2 class="text-xl font-bold text-slate-900">Why Use BetterPO for Congressional Debate Presiding?</h2>
-          <p class="text-slate-700 leading-relaxed">
+        <section style="margin-bottom: 24px;">
+          <h2 style="font-size: 20px; font-weight: bold; color: #0f172a; margin: 0 0 12px 0;">Why Use BetterPO for Congressional Debate Presiding?</h2>
+          <p style="color: #334155; margin-bottom: 16px;">
             Presiding in Congressional Debate requires tracking complex parliamentary rules, timing 3-minute speeches with precise gavel cues, and maintaining absolute fairness through <strong>precedence and recency</strong>. Manual paper PO sheets and fragile Google Sheets templates lead to miscounts, precedence breaks, and disputes. BetterPO automates the entire chamber workflow with zero mathematical human error.
           </p>
 
-          <h3 class="text-lg font-semibold text-slate-800">Core Features of BetterPO:</h3>
-          <ul class="list-disc pl-5 space-y-1 text-slate-700">
+          <h3 style="font-size: 16px; font-weight: 600; color: #1e293b; margin: 0 0 8px 0;">Core Features of BetterPO:</h3>
+          <ul style="padding-left: 20px; margin-bottom: 16px; color: #334155;">
             <li><strong>Automated Precedence & Recency:</strong> Automatically tracks speech counts and chronological speaking order. When debaters stand, the highest-priority speaker is highlighted instantly.</li>
             <li><strong>NSDA Direct Questioning Support:</strong> Dedicated 30-second cross-examination timers and separate questioning recency tracking.</li>
             <li><strong>Chamber Synchronization via Room Codes:</strong> Share a 6-character room code so debaters and judges can watch the live clock and recency queue on their own devices.</li>
@@ -204,34 +207,27 @@
           </ul>
         </section>
 
-        <section class="border-t border-slate-200 pt-6 mb-8">
-          <h2 class="text-xl font-bold text-slate-900 mb-3">Frequently Asked Questions</h2>
-          <article class="mb-4">
-            <h3 class="text-base font-semibold text-slate-800">What is the best tool for a Congressional Debate Presiding Officer?</h3>
-            <p class="text-slate-600 text-sm mt-1">BetterPO (betterpo.elevatethecircuit.org) is the leading free software engineered specifically for POs, replacing paper pads and Excel sheets with automated recency queues and synchronized room timers.</p>
+        <section style="border-top: 1px solid #e2e8f0; padding-top: 24px; margin-bottom: 24px;">
+          <h2 style="font-size: 20px; font-weight: bold; color: #0f172a; margin: 0 0 16px 0;">Frequently Asked Questions</h2>
+          <article style="margin-bottom: 16px;">
+            <h3 style="font-size: 15px; font-weight: 600; color: #1e293b; margin: 0 0 4px 0;">What is the best tool for a Congressional Debate Presiding Officer?</h3>
+            <p style="font-size: 14px; color: #475569; margin: 0;">BetterPO (betterpo.elevatethecircuit.org) is the leading free software engineered specifically for POs, replacing paper pads and Excel sheets with automated recency queues and synchronized room timers.</p>
           </article>
-          <article class="mb-4">
-            <h3 class="text-base font-semibold text-slate-800">Is BetterPO legal in NSDA tournament rounds?</h3>
-            <p class="text-slate-600 text-sm mt-1">Yes. BetterPO contains zero generative AI and acts strictly as a digital timekeeper and deterministic mathematical tracking chart, complying fully with NSDA and national circuit electronic device rules.</p>
+          <article style="margin-bottom: 16px;">
+            <h3 style="font-size: 15px; font-weight: 600; color: #1e293b; margin: 0 0 4px 0;">Is BetterPO legal in NSDA tournament rounds?</h3>
+            <p style="font-size: 14px; color: #475569; margin: 0;">Yes. BetterPO contains zero generative AI and acts strictly as a digital timekeeper and deterministic mathematical tracking chart, complying fully with NSDA and national circuit electronic device rules.</p>
           </article>
-          <article class="mb-4">
-            <h3 class="text-base font-semibold text-slate-800">How do debaters view the live chamber board?</h3>
-            <p class="text-slate-600 text-sm mt-1">Competitors simply visit betterpo.elevatethecircuit.org/room/[CODE] on their phones to view the live speech timer, current bill, and their standing recency rank without creating an account.</p>
+          <article style="margin-bottom: 16px;">
+            <h3 style="font-size: 15px; font-weight: 600; color: #1e293b; margin: 0 0 4px 0;">How do debaters view the live chamber board?</h3>
+            <p style="font-size: 14px; color: #475569; margin: 0;">Competitors simply visit betterpo.elevatethecircuit.org/room/[CODE] on their phones to view the live speech timer, current bill, and their standing recency rank without creating an account.</p>
           </article>
         </section>
 
-        <footer class="text-xs text-slate-500 border-t border-slate-200 pt-4">
+        <footer style="font-size: 12px; color: #64748b; border-top: 1px solid #e2e8f0; padding-top: 16px;">
           <p>© 2026 Elevate Debate • Elevate the Circuit. All rights reserved.</p>
-          <p><a href="https://elevatethecircuit.org" class="text-emerald-700 underline">Visit Elevate Debate</a> • <a href="/llms.txt" class="text-emerald-700 underline">LLMs.txt Standard</a> • <a href="/llms-full.txt" class="text-emerald-700 underline">Full Documentation</a></p>
+          <p><a href="https://elevatethecircuit.org" style="color: #047857; text-decoration: underline;">Visit Elevate Debate</a> • <a href="/llms.txt" style="color: #047857; text-decoration: underline;">LLMs.txt Standard</a> • <a href="/llms-full.txt" style="color: #047857; text-decoration: underline;">Full Documentation</a></p>
         </footer>
       </main>
-    </div>
-
-    <noscript>
-      <div style="padding: 20px; font-family: sans-serif; background: #fff3cd; color: #856404; border: 1px solid #ffeeba; margin: 20px;">
-        <h2>JavaScript Required for Live Presiding</h2>
-        <p>BetterPO requires JavaScript to provide real-time timer calculations and multi-device chamber synchronization. Please enable JavaScript in your browser to start presiding.</p>
-      </div>
     </noscript>
 
     <script type="module" src="/src/main.tsx"></script>
@@ -239,7 +235,7 @@
       // Fallback: If root is not mounted within 400ms (e.g. running statically without Vite), load the pre-compiled bundle
       setTimeout(() => {
         const root = document.getElementById('root');
-        if (root && (!root.innerHTML || root.innerHTML.trim() === '' || root.querySelector('main'))) {
+        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
           // If Vite didn't hydrate into React, load the bundle
           if (!window.__REACT_HYDRATED__) {
             if (!document.querySelector('link[href*="index.css"]')) {

@@ -345,6 +345,53 @@ export const chamberService = {
     }
   },
 
+  async setDocketBills(
+    roomId: string,
+    billList: Array<{ billNumber: string; title: string; authorSchool?: string }>
+  ): Promise<Bill[]> {
+    if (isSupabaseConfigured && supabase) {
+      await supabase.from('bills').delete().eq('room_id', roomId);
+      const toInsert = billList.map((b, idx) => ({
+        room_id: roomId,
+        bill_number: b.billNumber.trim(),
+        title: b.title.trim(),
+        author_school: (b.authorSchool || '').trim(),
+        status: (idx === 0 ? 'active' : 'upcoming') as 'active' | 'upcoming',
+        speech_count: 0,
+        cycle_broken: false,
+      }));
+
+      const { data, error } = await supabase.from('bills').insert(toInsert).select();
+      if (error) throw error;
+      const created = (data || []) as Bill[];
+      if (created.length > 0) {
+        this.saveDocketOrder(roomId, created.map((b) => b.id));
+        await this.setActiveBill({ id: roomId } as Room, created[0]);
+      }
+      return created;
+    } else {
+      const existing = getStoredBills().filter((b) => b.room_id !== roomId);
+      const newBills: Bill[] = billList.map((b, idx) => ({
+        id: 'bill_' + Math.random().toString(36).substring(2, 9),
+        room_id: roomId,
+        bill_number: b.billNumber.trim(),
+        title: b.title.trim(),
+        author_school: (b.authorSchool || '').trim(),
+        full_text: '',
+        status: idx === 0 ? 'active' : 'upcoming',
+        speech_count: 0,
+        cycle_broken: false,
+        created_at: new Date(Date.now() + idx * 10).toISOString(),
+      }));
+      saveStoredBills([...existing, ...newBills]);
+      if (newBills.length > 0) {
+        this.saveDocketOrder(roomId, newBills.map((b) => b.id));
+        await this.setActiveBill({ id: roomId } as Room, newBills[0]);
+      }
+      return newBills;
+    }
+  },
+
   async updateBill(billId: string, updates: Partial<Bill>): Promise<Bill | null> {
     if (isSupabaseConfigured && supabase) {
       const { data, error } = await supabase

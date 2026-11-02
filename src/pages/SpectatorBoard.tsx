@@ -1,20 +1,15 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   Gavel, 
   Share2, 
   Lock, 
-  FileText, 
   AlertCircle, 
-  Clock,
   Coffee,
-  ArrowLeftRight,
   Users,
   FileEdit,
-  Award,
-  MessageSquare,
   Search,
-  Star,
   Mic,
   ChevronUp,
   ChevronDown,
@@ -23,6 +18,8 @@ import {
 } from 'lucide-react';
 import { chamberService } from '../lib/chamberService';
 import { 
+  supabase,
+  isSupabaseConfigured,
   subscribeToLocalSync,
   calculateCurrentTimer
 } from '../lib/supabase';
@@ -31,7 +28,8 @@ import type {
   Representative, 
   Bill, 
   RoundEvent, 
-  TimerBroadcastPayload 
+  TimerBroadcastPayload,
+  TimerMode
 } from '../lib/supabase';
 import { sortRepresentatives } from '../lib/precedence';
 import { BetterPOLoader } from '../components/BetterPOLoader';
@@ -64,8 +62,8 @@ export const SpectatorBoard: React.FC = () => {
   const [timerSecondsLeft, setTimerSecondsLeft] = useState<number>(190);
   const [timerDuration, setTimerDuration] = useState<number>(190);
   const [timerIsRunning, setTimerIsRunning] = useState<boolean>(false);
-  const [timerMode, setTimerMode] = useState<'speech' | 'dq' | 'question' | 'recess' | 'custom'>('speech');
-  const [timerSpeakerName, setTimerSpeakerName] = useState<string | null>(null);
+  const [timerMode, setTimerMode] = useState<TimerMode>('speech');
+  const [timerQuestionerName, setTimerQuestionerName] = useState<string | null>(null);
 
   // Copied link toast indicator
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
@@ -151,16 +149,43 @@ export const SpectatorBoard: React.FC = () => {
           setTimerDuration(data.duration);
           setTimerIsRunning(data.is_running);
           setTimerMode(data.mode);
-          setTimerSpeakerName(data.speaker_name);
+          if (data.questioner_name !== undefined) {
+            setTimerQuestionerName(data.questioner_name);
+          }
         }
       }
     });
+
+    // Realtime broadcast channel via Supabase
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let subChannel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      subChannel = supabase.channel(`timer_${code}`);
+      subChannel
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .on('broadcast', { event: 'timer_ping' }, ({ payload }: { payload: any }) => {
+          const data = payload as TimerBroadcastPayload;
+          if (data && data.room_code === code) {
+            setTimerSecondsLeft(data.seconds_left);
+            setTimerDuration(data.duration);
+            setTimerIsRunning(data.is_running);
+            setTimerMode(data.mode);
+            if (data.questioner_name !== undefined) {
+              setTimerQuestionerName(data.questioner_name);
+            }
+          }
+        })
+        .subscribe();
+    }
 
     return () => {
       clearInterval(interval);
       document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
       window.removeEventListener('focus', handleVisibilityOrFocus);
       cleanupLocal();
+      if (subChannel && supabase) {
+        supabase.removeChannel(subChannel);
+      }
     };
   }, [code, refreshData]);
 
@@ -202,6 +227,35 @@ export const SpectatorBoard: React.FC = () => {
     if (!room?.current_speaker_id) return null;
     return representatives.find((r) => r.id === room.current_speaker_id) || null;
   }, [room?.current_speaker_id, representatives]);
+
+  // Cross-examination & Questioning state
+  const isBeingQuestioned = useMemo(() => {
+    return (timerMode === 'question' || timerMode === 'dq') && (timerIsRunning || timerSecondsLeft > 0);
+  }, [timerMode, timerIsRunning, timerSecondsLeft]);
+
+  // Fallback to recent round events if spectator page loads mid-questioning
+  const latestQuestionEvent = useMemo(() => {
+    return roundEvents.find((e) => e.event_type === 'question') || null;
+  }, [roundEvents]);
+
+  const activeQuestionerName = useMemo(() => {
+    if (timerQuestionerName) return timerQuestionerName;
+    if (isBeingQuestioned && latestQuestionEvent) {
+      return latestQuestionEvent.representative_name;
+    }
+    return null;
+  }, [timerQuestionerName, isBeingQuestioned, latestQuestionEvent]);
+
+  // Speaker resolution (the one on the floor who spoke / is being questioned)
+  const displaySpeaker = useMemo(() => {
+    if (activeSpeaker) return activeSpeaker;
+    const lastSpeech = roundEvents.find((e) => e.event_type.startsWith('speech_'));
+    if (lastSpeech) {
+      const rep = representatives.find((r) => r.id === lastSpeech.representative_id);
+      return rep || { name: lastSpeech.representative_name };
+    }
+    return null;
+  }, [activeSpeaker, roundEvents, representatives]);
 
   // Quorum Calculations
   const quorumStats = useMemo(() => {
@@ -369,14 +423,13 @@ export const SpectatorBoard: React.FC = () => {
           {/* Claim Name Button */}
           <button
             onClick={() => setShowClaimModal(true)}
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono font-semibold transition-all shadow-sm ${
+            className={`inline-flex items-center px-2.5 py-1 rounded-lg border text-xs font-mono font-semibold transition-all shadow-sm ${
               claimedSenator
                 ? 'bg-slate-900 text-white border-slate-900'
                 : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200'
             }`}
             title="Pin your row to track your recency position"
           >
-            <Star className={`w-3.5 h-3.5 ${claimedSenator ? 'text-amber-400 fill-amber-400' : 'text-slate-400'}`} />
             <span className="hidden sm:inline">
               {claimedSenator ? claimedSenator.name.split(' ')[0] : 'Claim Seat'}
             </span>
@@ -412,28 +465,17 @@ export const SpectatorBoard: React.FC = () => {
             ======================================================== */}
         <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] space-y-4">
           
-          {/* Top Row: Active Legislation Title & Chamber Status */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div className="space-y-0.5">
-              <div className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <FileText className="w-3.5 h-3.5 text-slate-400" />
-                <span>Active Legislation on the Floor</span>
-              </div>
-              <div className="text-base sm:text-xl font-serif-editorial font-bold text-slate-900">
-                {activeBill ? (
-                  <span>
-                    <span className="text-emerald-700">{activeBill.bill_number}:</span> {activeBill.title}
-                  </span>
-                ) : room.current_legislation ? (
-                  room.current_legislation
-                ) : (
-                  'General Business / No Bill Active'
-                )}
-              </div>
-              {activeBill?.author_school && (
-                <div className="text-xs font-mono text-slate-400">
-                  Author Affiliation: <span className="text-slate-600">{activeBill.author_school}</span>
-                </div>
+          {/* Top Row: Active Legislation Title */}
+          <div className="pb-3 border-b border-slate-100">
+            <div className="text-base sm:text-xl font-serif-editorial font-bold text-slate-900">
+              {activeBill ? (
+                <span>
+                  <span className="text-emerald-700">{activeBill.bill_number}:</span> {activeBill.title}
+                </span>
+              ) : room.current_legislation ? (
+                room.current_legislation
+              ) : (
+                'General Business / No Bill Active'
               )}
             </div>
           </div>
@@ -464,132 +506,67 @@ export const SpectatorBoard: React.FC = () => {
           {/* Middle Row: Speech Status & Live Synchronized Timer HUD */}
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
             
-            {/* Left Box (col-span-7): Active Speaker & Speech Stage */}
-            <div className="md:col-span-7 bg-slate-50 border border-slate-200 rounded-xl p-3.5 space-y-2">
-              <div className="text-[10px] font-mono font-bold text-slate-400 uppercase tracking-wider flex items-center justify-between">
-                <span>Floor Recognition & Sequence</span>
-                {activeBill && (
-                  <span className="font-mono text-slate-600 font-semibold">
-                    {activeBill.speech_count} Speeches Given
-                  </span>
-                )}
-              </div>
-
-              {/* Active Speaker Presentation */}
-              {activeSpeaker ? (
-                <div className="p-3 rounded-xl bg-white border border-emerald-300 flex items-center justify-between gap-3 shadow-sm">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600 shrink-0 border border-emerald-200">
-                      <Mic className="w-5 h-5 animate-pulse" />
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-600 text-white">
-                          Speaking
-                        </span>
-                        <h4 className="font-serif-editorial font-bold text-slate-900 text-base">
-                          Senator {activeSpeaker.name}
-                        </h4>
-                      </div>
-                      <p className="text-xs font-mono text-slate-500 mt-0.5">
-                        {activeSpeaker.school || 'Chamber Member'} • Floor is occupied
-                      </p>
-                    </div>
-                  </div>
+            {/* Left Box (col-span-7): Active Speaker & Questioning Status */}
+            <div className="md:col-span-7 space-y-2.5">
+              {displaySpeaker ? (
+                <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-center min-h-[96px] space-y-1 shadow-xs">
+                  <h4 className="font-serif-editorial font-bold text-slate-900 text-lg sm:text-xl leading-snug">
+                    {displaySpeaker.name ? (
+                      displaySpeaker.name.startsWith('Senator') ? displaySpeaker.name : `Senator ${displaySpeaker.name}`
+                    ) : (
+                      'Senator on the Floor'
+                    )}
+                  </h4>
+                  {cycleInfo && (
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-emerald-800">
+                      {cycleInfo.stageText}
+                    </p>
+                  )}
                 </div>
               ) : (
-                <div className="p-3 rounded-xl bg-white border border-slate-200 flex items-center gap-2.5 text-xs font-mono text-slate-500">
-                  <Mic className="w-4 h-4 text-slate-400 shrink-0" />
-                  <span>The floor is currently open (awaiting speaker recognition by Presiding Officer).</span>
+                <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 flex items-center text-xs sm:text-sm font-mono text-slate-500 min-h-[96px] shadow-xs">
+                  <span>The floor is currently open.</span>
                 </div>
               )}
 
-              {/* Cycle Alert & Stage Pill */}
-              {cycleInfo && (
-                <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-xs">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border font-bold ${cycleInfo.badgeClass}`}>
-                    <ArrowLeftRight className="w-3.5 h-3.5" />
-                    <span>{cycleInfo.stageText}</span>
-                  </span>
+              {/* Popup under whoever spoke showing who is questioning them and their remaining time */}
+              {isBeingQuestioned && (
+                <div className="animate-fade-in p-3.5 sm:p-4 rounded-xl bg-sky-50/95 border-2 border-sky-300 text-slate-900 shadow-sm flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800 mb-0.5">
+                      Being Questioned By
+                    </div>
+                    <div className="font-serif-editorial font-bold text-base sm:text-lg text-slate-900 truncate">
+                      {activeQuestionerName ? (
+                        activeQuestionerName.startsWith('Senator') ? activeQuestionerName : `Senator ${activeQuestionerName}`
+                      ) : (
+                        'Floor Questioner'
+                      )}
+                    </div>
+                  </div>
 
-                  {cycleInfo.isBroken && (
-                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200 uppercase tracking-wider">
-                      Override Active
-                    </span>
-                  )}
+                  <div className="shrink-0 text-right">
+                    <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-700">
+                      Question Time
+                    </div>
+                    <div className="font-mono font-black text-xl sm:text-2xl text-sky-950 tracking-tight leading-none mt-0.5">
+                      {formatTimerClock(timerSecondsLeft)}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Right Box (col-span-5): Live Master Synchronized Timer HUD */}
-            <div className={`md:col-span-5 p-4 rounded-xl border flex flex-col items-center justify-center text-center transition-all shadow-sm ${
+            {/* Right Box (col-span-5): Live Synchronized Timer HUD */}
+            <div className={`md:col-span-5 p-4 sm:p-5 rounded-xl border flex items-center justify-center text-center transition-all min-h-[96px] shadow-xs ${
               isExpired
                 ? 'bg-rose-50 border-rose-300 text-rose-900 animate-pulse'
                 : isGracePeriod
                 ? 'bg-amber-50 border-amber-300 text-amber-900'
-                : timerIsRunning
-                ? 'bg-white border-slate-200 text-slate-900'
-                : 'bg-slate-50 border-slate-200 text-slate-600'
+                : 'bg-slate-50 border-slate-200 text-slate-900'
             }`}>
-              <div className="flex items-center justify-between w-full pb-1 text-[10px] uppercase font-mono font-bold text-slate-400 tracking-wider">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-slate-400" />
-                  <span>Master Clock</span>
-                </span>
-                <span className={`font-semibold ${timerIsRunning ? 'text-emerald-700' : 'text-slate-400'}`}>
-                  {timerIsRunning ? '● Running' : 'Paused / Ready'}
-                </span>
-              </div>
-
-              {/* Digital Monospace Countdown Display */}
-              <div className="font-mono font-black text-4xl sm:text-5xl tracking-tight my-1 text-slate-900">
+              <div className="font-mono font-black text-5xl sm:text-6xl tracking-tight leading-none">
                 {formatTimerClock(timerSecondsLeft)}
-              </div>
-
-              {/* Progress Bar Sync */}
-              <div className="w-full bg-slate-100 h-1.5 rounded-full overflow-hidden my-1 border border-slate-200/80">
-                <div 
-                  className={`h-full transition-all duration-300 ${
-                    isExpired ? 'bg-rose-500' : isGracePeriod ? 'bg-amber-500' : 'bg-emerald-500'
-                  }`}
-                  style={{ 
-                    width: `${Math.max(0, Math.min(100, ((timerDuration - timerSecondsLeft) / (timerDuration || 190)) * 100))}%` 
-                  }}
-                />
-              </div>
-
-              {/* Speaker Indicator from PO Timer broadcast if not already resolved */}
-              {timerSpeakerName && !activeSpeaker && (
-                <div className="text-[11px] text-emerald-700 font-mono font-semibold truncate max-w-[200px] mb-1">
-                  Speaker: {timerSpeakerName}
-                </div>
-              )}
-
-              {/* Timer Cues & Phase Labels */}
-              <div className="flex items-center justify-center gap-2 text-xs font-mono font-bold">
-                {isExpired ? (
-                  <span className="text-rose-600 uppercase tracking-wider flex items-center gap-1">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Time Expired</span>
-                  </span>
-                ) : isGracePeriod ? (
-                  <span className="text-amber-600 uppercase tracking-wider flex items-center gap-1 animate-pulse">
-                    <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Grace Period ({timerDuration === 190 ? timerSecondsLeft : 10 + timerSecondsLeft}s)</span>
-                  </span>
-                ) : (
-                  <span className="text-slate-500">
-                    {timerMode === 'speech'
-                      ? 'Speech Clock (3:10)'
-                      : timerMode === 'dq'
-                      ? 'Direct Questioning (30s)'
-                      : timerMode === 'question'
-                      ? 'Cross-Examination (1:00)'
-                      : timerMode === 'recess'
-                      ? 'Chamber Recess'
-                      : 'Timed Floor Period'}
-                  </span>
-                )}
               </div>
             </div>
           </div>
@@ -646,12 +623,8 @@ export const SpectatorBoard: React.FC = () => {
             ======================================================== */}
         {claimedSenator && (
           <div className="bg-white border border-slate-200 rounded-xl p-3.5 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fadeIn">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-amber-50 text-amber-600 border border-amber-200 shrink-0">
-                <Star className="w-4 h-4 fill-amber-500 text-amber-500" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
+            <div>
+              <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900 text-white">
                     Your Seat
                   </span>
@@ -682,7 +655,6 @@ export const SpectatorBoard: React.FC = () => {
                   </span>
                 </div>
               </div>
-            </div>
 
             <button
               onClick={() => handleClaimSenator(null)}
@@ -700,15 +672,7 @@ export const SpectatorBoard: React.FC = () => {
           
           {/* Header & Controls: Mode Switcher & Search Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-emerald-600" />
-              <div>
-                <h3 className="font-serif-editorial font-bold text-slate-900 text-base">The Pure Recency Ladder</h3>
-                <p className="text-[11px] font-mono text-slate-400">
-                  Real-time sorted precedence & recency according to official rules
-                </p>
-              </div>
-            </div>
+            <h3 className="font-serif-editorial font-bold text-slate-900 text-base">Recency Ladder</h3>
 
             <div className="flex items-center gap-2.5">
               {/* Search Filter */}
@@ -724,39 +688,11 @@ export const SpectatorBoard: React.FC = () => {
               </div>
 
               {/* Speeches vs Questions Mode Toggle */}
-              <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200 font-mono text-xs">
-                <button
-                  onClick={() => setLadderMode('speech')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5 ${
-                    ladderMode === 'speech'
-                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <Award className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Speeches</span>
-                </button>
-                <button
-                  onClick={() => setLadderMode('question')}
-                  className={`px-3 py-1 rounded-md font-semibold transition-all flex items-center gap-1.5 ${
-                    ladderMode === 'question'
-                      ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                      : 'text-slate-500 hover:text-slate-900'
-                  }`}
-                >
-                  <MessageSquare className="w-3.5 h-3.5 text-slate-600" />
-                  <span>Questions</span>
-                </button>
-              </div>
+              <SelectionGroup
+                aria-label="Recency ladder mode" value={ladderMode} onValueChange={setLadderMode}
+                options={[{ value: 'speech', label: 'Speeches' }, { value: 'question', label: 'Questions' }]}
+              />
             </div>
-          </div>
-
-          {/* Ladder Legend */}
-          <div className="text-[10px] font-mono font-bold uppercase text-slate-400 tracking-wider flex items-center justify-between px-3 py-1 bg-slate-50 rounded-lg border border-slate-100">
-            <span>Rank & Senator</span>
-            <span>
-              {ladderMode === 'speech' ? 'Precedence (Speeches) • Recency Order' : 'Precedence (Questions) • Recency Order'}
-            </span>
           </div>
 
           {/* Sorted Representatives Ladder List */}
@@ -825,9 +761,8 @@ export const SpectatorBoard: React.FC = () => {
 
                           {/* You / Claimed Badge */}
                           {isClaimed && (
-                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500 text-white flex items-center gap-0.5 shadow-sm">
-                              <Star className="w-2.5 h-2.5 fill-white" />
-                              <span>You</span>
+                            <span className="px-1.5 py-0.2 rounded text-[10px] font-mono font-bold uppercase tracking-wider bg-amber-500 text-white shadow-sm">
+                              You
                             </span>
                           )}
 

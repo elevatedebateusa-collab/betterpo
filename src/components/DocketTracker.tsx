@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState } from 'react';
 import { 
   X, 
@@ -141,21 +142,11 @@ export const DocketTracker: React.FC<DocketTrackerProps> = ({
         {/* Action Controls & Filter */}
         <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 mb-3">
           {/* Status Filters */}
-          <div className="flex flex-wrap items-center bg-slate-100 p-1 rounded-xl border border-slate-200 text-xs gap-1">
-            {(['all', 'active', 'upcoming', 'passed', 'failed', 'tabled'] as const).map((st) => (
-              <button
-                key={st}
-                onClick={() => setFilter(st)}
-                className={`px-3 py-1.5 rounded-lg capitalize font-semibold transition-colors ${
-                  filter === st
-                    ? 'bg-white text-slate-900 shadow-xs border border-slate-200/80'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {st}
-              </button>
-            ))}
-          </div>
+          <SelectionGroup
+            aria-label="Bill status filter" value={filter} onValueChange={setFilter}
+            itemClassName="capitalize" className="flex-wrap"
+            options={(['all', 'active', 'upcoming', 'passed', 'failed', 'tabled'] as const).map(status => ({ value: status, label: status }))}
+          />
 
           <button
             onClick={() => setShowAddForm(!showAddForm)}

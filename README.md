@@ -85,3 +85,24 @@ npm run dev
 ```
 
 Run [`supabase/schema.sql`](./supabase/schema.sql) in your Supabase SQL Editor to provision the database and realtime replication.
+
+## Shared selection controls
+
+Reusable UI primitives live in `src/components/ui`, matching the source layout
+and the `@/components/ui` alias used by shadcn. `components.json` points the CLI
+to this directory so new primitives do not get mixed into chamber logic.
+The project retains Tailwind 3 and TypeScript; no Tailwind migration is required.
+
+- `tabs.tsx`: the supplied Radix tab component, including default, button, and
+  underline variants; use `TabsContent` for associated panels.
+- `selection-group.tsx`: the same styling with Radix radio semantics for one
+  active setting, mode, filter, or preset. Options support descriptions, icons,
+  disabled states, and keyboard navigation. Timer presets use `onReselect` to
+  preserve resetting the currently selected preset.
+- `badge.tsx`: the supplied badges, with Tailwind 3-compatible utilities and
+  color fallbacks.
+
+Use `SelectionGroup` for grouped choices and `Tabs` for navigation between
+panels. Keep searchable or long roster dropdowns, independent checkboxes,
+and multi-selection seating charts appropriate to their existing interaction.
+Both component families use the site's existing green, navy, and Lato buttons.

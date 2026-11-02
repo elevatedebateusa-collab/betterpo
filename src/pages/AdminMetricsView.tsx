@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   Shield, 
@@ -571,22 +572,11 @@ export const AdminMetricsView: React.FC = () => {
           <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 pb-2 border-b border-white/[0.06]">
             
             {/* Filter Pills */}
-            <div className="flex items-center gap-1.5 overflow-x-auto text-xs font-mono">
-              <span className="text-neutral-400 uppercase tracking-wider text-[11px] mr-1 hidden sm:inline">Filter:</span>
-              {(['all', 'in_session', 'recess', 'adjourned'] as const).map((st) => (
-                <button
-                  key={st}
-                  onClick={() => setStatusFilter(st)}
-                  className={`px-3 py-1.5 rounded-lg capitalize transition-colors font-semibold ${
-                    statusFilter === st
-                      ? 'bg-white text-black shadow-xs'
-                      : 'bg-white/[0.04] text-neutral-400 hover:text-white hover:bg-white/[0.08]'
-                  }`}
-                >
-                  {st === 'in_session' ? 'Live Session' : st}
-                </button>
-              ))}
-            </div>
+            <SelectionGroup
+              aria-label="Chamber status filter" value={statusFilter} onValueChange={setStatusFilter}
+              className="selection-group--dark" itemClassName="capitalize"
+              options={(['all', 'in_session', 'recess', 'adjourned'] as const).map(status => ({ value: status, label: status === 'in_session' ? 'Live Session' : status }))}
+            />
 
             {/* Search Box */}
             <div className="relative min-w-[260px]">

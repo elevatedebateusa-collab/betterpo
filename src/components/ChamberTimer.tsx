@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   Play, 
@@ -27,14 +28,22 @@ function extractLastName(fullName: string | null | undefined): string {
   return parts[parts.length - 1];
 }
 
+export interface TimerAutoStartConfig {
+  mode: 'speech' | 'question' | 'dq';
+  duration: number;
+  questionerName?: string | null;
+}
+
 interface ChamberTimerProps {
   roomCode: string;
   roomId?: string;
   isPO?: boolean;
   speakerId?: string | null;
   speakerName?: string | null;
+  questionerName?: string | null;
   onClearSpeaker?: () => void;
   autoStartTrigger?: number; // increments when an action is awarded
+  autoStartConfig?: TimerAutoStartConfig;
   onRecessChange?: (isRecess: boolean) => void;
 }
 
@@ -44,8 +53,10 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   isPO = false,
   speakerId = null,
   speakerName = null,
+  questionerName = null,
   onClearSpeaker,
   autoStartTrigger = 0,
+  autoStartConfig,
   onRecessChange,
 }) => {
   const [duration, setDuration] = useState<number>(190); // 3:10 default (3:00 speech + 10s grace)
@@ -63,20 +74,23 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   const pingedGraceRef = useRef<boolean>(false);
   const pingedExpiredRef = useRef<boolean>(false);
 
-  // Auto-start timer when speech is awarded
+  // Auto-start timer when action (speech or question) is awarded
   useEffect(() => {
     if (autoStartTrigger > 0 && isPO) {
-      setDuration(190);
-      setSecondsLeft(190);
+      const targetMode = autoStartConfig?.mode || 'speech';
+      const targetDuration = autoStartConfig?.duration || (targetMode === 'speech' ? 190 : 60);
+
+      setDuration(targetDuration);
+      setSecondsLeft(targetDuration);
       setIsRunning(true);
-      setMode('speech');
+      setMode(targetMode);
       resetGavelRefs();
-      broadcast(190, true, 190, 'speech');
+      broadcast(targetDuration, true, targetDuration, targetMode, autoStartConfig?.questionerName);
       if (roomId) {
-        chamberService.updateRoomTimer(roomId, 'running', 190, 190, 'speech');
+        chamberService.updateRoomTimer(roomId, 'running', targetDuration, targetDuration, targetMode);
       }
     }
-  }, [autoStartTrigger, isPO, roomId]);
+  }, [autoStartTrigger, autoStartConfig, isPO, roomId]);
 
   const resetGavelRefs = () => {
     pinged1MinRef.current = false;
@@ -125,7 +139,17 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   };
 
   // Broadcast timer state
-  const broadcast = (secs: number, running: boolean, dur: number, timerMode: typeof mode) => {
+  const broadcast = (
+    secs: number,
+    running: boolean,
+    dur: number,
+    timerMode: typeof mode,
+    qName?: string | null
+  ) => {
+    const activeQName = qName !== undefined
+      ? qName
+      : (autoStartConfig?.questionerName || questionerName || null);
+
     const payload: TimerBroadcastPayload = {
       room_code: roomCode,
       seconds_left: secs,
@@ -133,6 +157,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
       is_running: running,
       speaker_id: speakerId,
       speaker_name: speakerName,
+      questioner_name: timerMode === 'question' || timerMode === 'dq' ? activeQName : null,
       mode: timerMode,
       timestamp: Date.now(),
     };
@@ -290,6 +315,13 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     }
   };
 
+  const handlePresetSelection = (value: string) => {
+    if (value === 'speech') applyPreset(190, 'speech');
+    else if (value === 'author') applyPreset(120, 'question');
+    else if (value === 'question') applyPreset(60, 'question');
+    else if (value === 'recess') applyPreset(300, 'recess');
+  };
+
   const adjustSeconds = (delta: number) => {
     const next = secondsLeft + delta;
     setSecondsLeft(next);
@@ -326,14 +358,20 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
         ? 'text-amber-900'
         : 'text-slate-900'
     }`}>
-      {/* Top Banner: Speaking [Last Name] or Floor Clear */}
+      {/* Top Banner: Senator [Full Name] or Floor Clear */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
           <span className="text-base font-serif-editorial font-bold text-slate-900 tracking-tight">
             {mode === 'recess'
               ? 'Chamber in Recess'
+              : mode === 'question'
+              ? (autoStartConfig?.questionerName || questionerName
+                  ? `Question: ${extractLastName(autoStartConfig?.questionerName || questionerName)}`
+                  : speakerName
+                  ? `CX: ${extractLastName(speakerName)}`
+                  : 'Floor Clear')
               : speakerName
-              ? `Speaking ${extractLastName(speakerName)}`
+              ? (speakerName.startsWith('Senator ') ? speakerName : `Senator ${speakerName}`)
               : 'Floor Clear'}
           </span>
           {speakerName && isPO && mode !== 'recess' && (
@@ -450,48 +488,18 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
             </div>
 
             {/* Presets Grid */}
-            <div className="grid grid-cols-4 gap-1 font-mono text-[10px]">
-              <button
-                onClick={() => applyPreset(190, 'speech')}
-                className={`px-2 py-1 rounded font-bold border transition-colors ${
-                  duration === 190 && mode === 'speech'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                3:10 Spk
-              </button>
-              <button
-                onClick={() => applyPreset(60, 'dq')}
-                className={`px-2 py-1 rounded font-bold border transition-colors ${
-                  duration === 60 && mode === 'dq'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                1:00 DQ
-              </button>
-              <button
-                onClick={() => applyPreset(30, 'question')}
-                className={`px-2 py-1 rounded font-bold border transition-colors ${
-                  duration === 30 && mode === 'question'
-                    ? 'bg-slate-900 text-white border-slate-900'
-                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-              >
-                0:30 Q
-              </button>
-              <button
-                onClick={() => applyPreset(300, 'recess')}
-                className={`px-2 py-1 rounded font-bold border transition-colors ${
-                  mode === 'recess'
-                    ? 'bg-amber-500 text-white border-amber-600'
-                    : 'bg-white border-slate-200 text-amber-700 hover:bg-amber-50'
-                }`}
-              >
-                5m Recess
-              </button>
-            </div>
+            <SelectionGroup
+              aria-label="Timer preset"
+              value={mode === 'recess' ? 'recess' : mode === 'speech' && duration === 190 ? 'speech' : mode === 'question' && duration === 120 ? 'author' : mode === 'question' && duration === 60 ? 'question' : ''}
+              onValueChange={handlePresetSelection} onReselect={handlePresetSelection} size="xs"
+              className="grid grid-cols-2 sm:grid-cols-4 gap-1" itemClassName="min-w-0 px-1.5"
+              options={[
+                { value: 'speech', label: '3:10 Spk' },
+                { value: 'author', label: '2:00 CX', title: 'Authorship or sponsorship questioning' },
+                { value: 'question', label: '1:00 CX', title: 'Regular speech questioning' },
+                { value: 'recess', label: '5m Recess' },
+              ]}
+            />
           </div>
         )}
       </div>

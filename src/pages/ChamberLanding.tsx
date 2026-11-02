@@ -1,14 +1,13 @@
+import { EclipseButton } from '@/components/ui/eclipse-button';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Gavel, 
   ArrowRight, 
-  Loader2, 
   AlertCircle, 
   Plus, 
   Trash2, 
   RefreshCw, 
-  ListOrdered, 
   ChevronLeft, 
   Radio, 
   Users,
@@ -58,7 +57,6 @@ export const ChamberLanding: React.FC = () => {
   // Presiding Officer Setup State
   const [chamberName, setChamberName] = useState<string>('');
   const [adminPin, setAdminPin] = useState<string>('');
-  const [docketBills, setDocketBills] = useState<string[]>(['']);
   const [rosterText, setRosterText] = useState<string>('');
   const [senatorsList, setSenatorsList] = useState<ParsedSenator[]>([]);
   const [isCreatingChamber, setIsCreatingChamber] = useState<boolean>(false);
@@ -109,22 +107,6 @@ export const ChamberLanding: React.FC = () => {
 
   const generateRandomPin = (): string => {
     return Math.floor(1000 + Math.random() * 9000).toString();
-  };
-
-  const handleAddBillSlot = () => {
-    setDocketBills((prev) => [...prev, '']);
-  };
-
-  const handleRemoveBillSlot = (index: number) => {
-    setDocketBills((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleUpdateBill = (index: number, value: string) => {
-    setDocketBills((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
   };
 
   // Handle Roster Parsing & Editing
@@ -241,26 +223,12 @@ export const ChamberLanding: React.FC = () => {
         validSenators
       );
 
-      const validBills = docketBills
-        .map((b) => b.trim())
-        .filter((b) => b.length > 0);
-
-      for (let i = 0; i < validBills.length; i++) {
-        const bTitle = validBills[i];
-        const bNum = `Bill ${i + 1}`;
-
-        const newBill = await chamberService.addBill(room.id, bNum, bTitle, '');
-        if (i === 0) {
-          await chamberService.setActiveBill(room, newBill);
-        }
-      }
-
       setCreatedChamberInfo({
         code: room.code,
         pin,
         chamberName: room.name,
         debaterCount: validSenators.length,
-        firstBillTitle: validBills[0] || 'General Orders',
+        firstBillTitle: 'Awaiting Docket Nominations',
         confirmedRoster: [...validSenators]
           .sort((a, b) => a.initialRecency - b.initialRecency)
           .map((s) => ({ name: s.name, school: s.school, recency: s.initialRecency })),
@@ -337,10 +305,9 @@ export const ChamberLanding: React.FC = () => {
             {/* SCREEN 1: ROLE SELECTION CARDS (HIGH-END MODERN ACADEMIC) */}
             {selectedRole === 'none' && (
               <div className="space-y-6 animate-fadeIn max-w-3xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  
+                <div role="group" aria-label="Choose your chamber role" className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Card 1: Presiding Officer */}
-                  <div 
+                  <div
                     onClick={() => setSelectedRole('po')}
                     className="group relative rounded-[28px] p-8 sm:p-9 bg-white border border-slate-100 shadow-[0_10px_35px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_45px_rgba(0,0,0,0.07)] transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
@@ -348,25 +315,25 @@ export const ChamberLanding: React.FC = () => {
                       <div className="w-14 h-14 rounded-2xl bg-[#ebf8f2] flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                         <Gavel className="w-6 h-6 text-[#006948]" />
                       </div>
-
-                      <h3 className="font-bold text-2xl text-slate-900 tracking-tight">
-                        Presiding Officer
-                      </h3>
+                      <h3 className="font-bold text-2xl text-slate-900 tracking-tight">Presiding Officer</h3>
                       <p className="text-slate-500 text-sm leading-relaxed mt-2.5">
                         Create a new session, manage recognition precedence, and lead chamber debates.
                       </p>
                     </div>
-
                     <div className="pt-8 mt-6 border-t border-slate-100">
-                      <button className="w-full py-3.5 px-6 rounded-2xl bg-[#090d16] group-hover:bg-[#006948] text-white font-sans text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs transition-colors active:scale-[0.99]">
-                        <span>CREATE A ROUND</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
+                      <EclipseButton
+                        text="CREATE A ROUND"
+                        className="w-full text-xs"
+                        rightIcon={<ArrowRight className="w-4 h-4" />}
+                        onClick={event => {
+                          event.stopPropagation();
+                          setSelectedRole('po');
+                        }}
+                      />
                     </div>
                   </div>
-
                   {/* Card 2: Competitor */}
-                  <div 
+                  <div
                     onClick={() => setSelectedRole('spectator')}
                     className="group relative rounded-[28px] p-8 sm:p-9 bg-white border border-slate-100 shadow-[0_10px_35px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_45px_rgba(0,0,0,0.07)] transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
@@ -374,23 +341,23 @@ export const ChamberLanding: React.FC = () => {
                       <div className="w-14 h-14 rounded-2xl bg-[#eef3f7] flex items-center justify-center mb-6 group-hover:scale-105 transition-transform">
                         <Users className="w-6 h-6 text-slate-700" />
                       </div>
-
-                      <h3 className="font-bold text-2xl text-slate-900 tracking-tight">
-                        Competitor
-                      </h3>
+                      <h3 className="font-bold text-2xl text-slate-900 tracking-tight">Competitor</h3>
                       <p className="text-slate-500 text-sm leading-relaxed mt-2.5">
                         Enter room code to monitor live speaker queues, motions, and synchronized timers.
                       </p>
                     </div>
-
                     <div className="pt-8 mt-6 border-t border-slate-100">
-                      <button className="w-full py-3.5 px-6 rounded-2xl bg-[#090d16] group-hover:bg-[#1e293b] text-white font-sans text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs transition-colors active:scale-[0.99]">
-                        <span>ENTER ROOM CODE</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </button>
+                      <EclipseButton
+                        text="ENTER ROOM CODE"
+                        className="w-full text-xs"
+                        rightIcon={<ArrowRight className="w-4 h-4" />}
+                        onClick={event => {
+                          event.stopPropagation();
+                          setSelectedRole('spectator');
+                        }}
+                      />
                     </div>
                   </div>
-
                 </div>
               </div>
             )}
@@ -400,17 +367,17 @@ export const ChamberLanding: React.FC = () => {
               <div className="max-w-md mx-auto w-full animate-fadeIn">
                 <div className="bg-white border border-slate-100 rounded-[28px] p-8 sm:p-10 space-y-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)] text-center">
                   <div className="flex items-center justify-start">
-                    <button
+                    <EclipseButton
                       type="button"
                       onClick={() => {
                         setSelectedRole('none');
                         setJoinError(null);
                       }}
-                      className="inline-flex items-center gap-1 font-sans text-xs text-slate-500 hover:text-slate-900 transition-colors font-medium"
+                      variant="ghost" size="sm" className="min-h-8 px-3 py-1 text-xs"
                     >
                       <ChevronLeft className="w-4 h-4" />
                       <span>Back</span>
-                    </button>
+                    </EclipseButton>
                   </div>
 
                   <div className="w-14 h-14 rounded-2xl bg-[#eef3f7] flex items-center justify-center mx-auto text-slate-700">
@@ -451,23 +418,14 @@ export const ChamberLanding: React.FC = () => {
                       />
                     </div>
 
-                    <button
+                    <EclipseButton
                       type="submit"
                       disabled={isCheckingRoom || !joinCode.trim()}
-                      className="w-full py-4 px-6 rounded-2xl bg-[#090d16] hover:bg-[#151d2e] disabled:opacity-40 text-white font-sans text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-[0.99] shadow-xs"
-                    >
-                      {isCheckingRoom ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin text-[#10B981]" />
-                          <span>Verifying Chamber...</span>
-                        </>
-                      ) : (
-                        <>
-                          <span>Connect to Chamber</span>
-                          <ArrowRight className="w-4 h-4 text-[#10B981]" />
-                        </>
-                      )}
-                    </button>
+                      variant="primary" size="default" className="w-full"
+                      isLoading={isCheckingRoom}
+                      text={isCheckingRoom ? 'Verifying Chamber...' : 'Connect to Chamber'}
+                      rightIcon={<ArrowRight className="w-4 h-4 text-[#10B981]" />}
+                    />
                   </form>
                 </div>
               </div>
@@ -486,18 +444,18 @@ export const ChamberLanding: React.FC = () => {
                 ) : (
                   <div className="bg-white border border-slate-100 rounded-[28px] p-8 sm:p-10 space-y-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)]">
                   <div className="flex items-center justify-start">
-                    <button
+                    <EclipseButton
                       type="button"
                       onClick={() => {
                         setSelectedRole('none');
                         setCreateError(null);
                         setCreatedChamberInfo(null);
                       }}
-                      className="inline-flex items-center gap-1 font-sans text-xs text-slate-500 hover:text-slate-900 transition-colors font-medium"
+                      variant="ghost" size="sm" className="min-h-8 px-3 py-1 text-xs"
                     >
                       <ChevronLeft className="w-4 h-4" />
                       <span>Back</span>
-                    </button>
+                    </EclipseButton>
                   </div>
 
                   <div>
@@ -553,63 +511,14 @@ export const ChamberLanding: React.FC = () => {
                           onChange={(e) => setAdminPin(e.target.value)}
                           className="w-full bg-white border border-slate-200 focus:border-[#006948] rounded-xl px-4 py-2.5 text-sm font-sans text-slate-900 focus:outline-none transition-colors"
                         />
-                        <button
+                        <EclipseButton
                           type="button"
                           onClick={() => setAdminPin(generateRandomPin())}
-                          className="absolute right-2 top-1/2 -translate-y-1/2 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-sans font-semibold border border-slate-200 flex items-center gap-1 transition-colors"
+                          variant="ghost" size="sm" className="absolute right-2 top-1.5 min-h-7 h-7 px-2.5 text-[11px]"
                         >
                           <RefreshCw className="w-3 h-3" />
                           <span>Randomize</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Docket Order Section */}
-                    <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/70 border border-slate-200 space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-200/80 pb-2.5">
-                        <div className="flex items-center gap-2">
-                          <ListOrdered className="w-4 h-4 text-[#006948]" />
-                          <span className="font-sans text-xs font-bold uppercase tracking-wider text-slate-800">
-                            Docket Order (In Sequence)
-                          </span>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={handleAddBillSlot}
-                          className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#006948] text-slate-800 text-xs font-sans font-semibold transition-colors"
-                        >
-                          <Plus className="w-3 h-3" />
-                          <span>Add Bill</span>
-                        </button>
-                      </div>
-
-                      <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                        {docketBills.map((bill, index) => (
-                          <div key={index} className="flex items-center gap-2">
-                            <span className="w-16 shrink-0 font-sans text-xs font-bold text-slate-500 text-right">
-                              Bill #{index + 1}:
-                            </span>
-                            <input
-                              type="text"
-                              placeholder=""
-                              autoComplete="off"
-                              autoCorrect="off"
-                              spellCheck={false}
-                              value={bill}
-                              onChange={(e) => handleUpdateBill(index, e.target.value)}
-                              className="flex-1 bg-white border border-slate-200 focus:border-[#006948] rounded-lg px-3 py-1.5 text-xs font-sans text-slate-900 focus:outline-none"
-                            />
-                            {docketBills.length > 1 && (
-                              <button
-                                type="button"
-                                onClick={() => handleRemoveBillSlot(index)}
-                                className="p-1.5 text-slate-400 hover:text-rose-600 transition-colors"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
+                        </EclipseButton>
                       </div>
                     </div>
 
@@ -654,30 +563,30 @@ export const ChamberLanding: React.FC = () => {
                           </div>
 
                           <div className="flex items-center gap-1.5 flex-wrap">
-                            <button
+                            <EclipseButton
                               type="button"
                               onClick={handleAutoNumberSenators}
-                              className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-sans font-semibold transition-colors"
+                              variant="outline" size="sm" className="min-h-8 px-3 py-1"
                               title="Reset numbers to 1..N"
                             >
                               Auto-Number
-                            </button>
-                            <button
+                            </EclipseButton>
+                            <EclipseButton
                               type="button"
                               onClick={handleSortSenatorsByRecency}
-                              className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-slate-300 text-slate-700 text-xs font-sans font-semibold transition-colors"
+                              variant="outline" size="sm" className="min-h-8 px-3 py-1"
                               title="Sort list by recency order"
                             >
                               Sort Order
-                            </button>
-                            <button
+                            </EclipseButton>
+                            <EclipseButton
                               type="button"
                               onClick={handleAddSenator}
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-[#006948] text-slate-800 text-xs font-sans font-semibold transition-colors"
+                              variant="outline" size="sm" className="min-h-8 px-3 py-1"
                             >
                               <Plus className="w-3 h-3" />
                               <span>Add</span>
-                            </button>
+                            </EclipseButton>
                           </div>
                         </div>
 
@@ -728,14 +637,14 @@ export const ChamberLanding: React.FC = () => {
                               />
 
                               {/* Remove action */}
-                              <button
+                              <EclipseButton
                                 type="button"
                                 onClick={() => handleRemoveSenator(senator.id)}
-                                className="p-1 text-slate-300 hover:text-rose-600 transition-colors shrink-0"
+                                variant="ghost" size="icon" className="h-8 w-8 min-h-8 shrink-0 text-rose-600"
                                 title="Remove speaker"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              </EclipseButton>
                             </div>
                           ))}
                         </div>
@@ -743,14 +652,14 @@ export const ChamberLanding: React.FC = () => {
                     )}
 
                     {/* Submit Button */}
-                    <button
+                    <EclipseButton
                       type="submit"
                       disabled={isCreatingChamber || !chamberName.trim()}
-                      className="w-full py-4 px-6 rounded-2xl bg-[#090d16] hover:bg-[#006948] disabled:opacity-40 text-white font-sans text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 active:scale-[0.99] shadow-xs"
+                      variant="primary" size="default" className="w-full"
                     >
                       <span>CREATE CHAMBER & GET ROOM CODE</span>
                       <ArrowRight className="w-4 h-4 text-[#10B981]" />
-                    </button>
+                    </EclipseButton>
                   </form>
                 </div>
                 )}
@@ -781,14 +690,14 @@ export const ChamberLanding: React.FC = () => {
                     </div>
 
                     <div className="flex items-center justify-center gap-3 pt-2">
-                      <button
+                      <EclipseButton
                         type="button"
                         onClick={() => {
                           navigator.clipboard.writeText(createdChamberInfo.code);
                           setCopiedCode(true);
                           setTimeout(() => setCopiedCode(false), 2000);
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-sans font-semibold text-white transition-colors"
+                        variant="primary" size="sm" className="min-h-9 px-3 border-white/30"
                       >
                         {copiedCode ? (
                           <>
@@ -801,9 +710,9 @@ export const ChamberLanding: React.FC = () => {
                             <span>Copy Code</span>
                           </>
                         )}
-                      </button>
+                      </EclipseButton>
 
-                      <button
+                      <EclipseButton
                         type="button"
                         onClick={() => {
                           const url = `${window.location.origin}/room/${createdChamberInfo.code}`;
@@ -811,11 +720,11 @@ export const ChamberLanding: React.FC = () => {
                           setCopiedCode(true);
                           setTimeout(() => setCopiedCode(false), 2000);
                         }}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/20 text-xs font-sans font-semibold text-white transition-colors"
+                        variant="primary" size="sm" className="min-h-9 px-3 border-white/30"
                       >
                         <Share2 className="w-3.5 h-3.5" />
                         <span>Copy Join Link</span>
-                      </button>
+                      </EclipseButton>
                     </div>
                   </div>
 
@@ -876,15 +785,15 @@ export const ChamberLanding: React.FC = () => {
 
                   {/* Primary "Start Round" CTA */}
                   <div className="pt-2">
-                    <button
+                    <EclipseButton
                       type="button"
                       onClick={handleStartRound}
-                      className="w-full py-4 px-6 rounded-2xl bg-[#090d16] hover:bg-[#006948] text-white font-sans text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-xs active:scale-[0.99] transition-all"
+                      variant="primary" size="default" className="w-full"
                     >
                       <Play className="w-4 h-4 fill-current text-[#10B981]" />
                       <span>START ROUND</span>
                       <ArrowRight className="w-4 h-4 ml-1" />
-                    </button>
+                    </EclipseButton>
                   </div>
                 </div>
               </div>
@@ -893,7 +802,7 @@ export const ChamberLanding: React.FC = () => {
           </div>
         </div>
       </main>
-      <SEOFooter />
+      {animStage === 'options_visible' && selectedRole === 'none' && <SEOFooter />}
     </div>
   );
 };

@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   Search, 
@@ -364,30 +365,13 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
           </div>
 
           {/* Density Toggle Button */}
-          <div className="flex items-center bg-slate-100 p-0.5 rounded-lg border border-slate-200/80 font-mono text-[10px]">
-            <button
-              onClick={() => handleDensityChange('compact')}
-              className={`px-2 py-0.5 rounded font-semibold transition-all ${
-                density === 'compact'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Compact Cards (Easier to see all senators at once)"
-            >
-              Compact
-            </button>
-            <button
-              onClick={() => handleDensityChange('comfortable')}
-              className={`px-2 py-0.5 rounded font-semibold transition-all ${
-                density === 'comfortable'
-                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200/60'
-                  : 'text-slate-500 hover:text-slate-800'
-              }`}
-              title="Comfortable Cards (Larger spacing)"
-            >
-              Comfortable
-            </button>
-          </div>
+          <SelectionGroup
+            aria-label="Seating card density" value={density} onValueChange={handleDensityChange} size="xs"
+            options={[
+              { value: 'compact', label: 'Compact', title: 'Compact cards: see more senators at once' },
+              { value: 'comfortable', label: 'Comfortable', title: 'Larger cards with more spacing' },
+            ]}
+          />
 
           {hasCustomLayout && (
             <button

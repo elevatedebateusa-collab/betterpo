@@ -143,6 +143,7 @@ export interface TimerBroadcastPayload {
   is_running: boolean;
   speaker_id: string | null;
   speaker_name: string | null;
+  questioner_name?: string | null;
   mode: 'speech' | 'dq' | 'question' | 'recess' | 'custom';
   timestamp: number;
 }

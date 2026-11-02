@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import type { Room, ChamberSettings } from '../lib/supabase';
@@ -69,41 +70,14 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block font-mono">
               Cross-Examination Format
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setCxMode('direct')}
-                className={`p-3.5 rounded-xl border text-left transition-all ${
-                  cxMode === 'direct'
-                    ? 'bg-emerald-50/60 border-[#006948] ring-1 ring-[#006948]/30 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-bold text-xs mb-1 text-slate-900">
-                  Direct Questioning
-                </div>
-                <div className="text-[11px] text-slate-500 leading-snug">
-                  30-second rapid-fire questioning segments between debaters. Standard in NSDA national circuit.
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setCxMode('standard')}
-                className={`p-3.5 rounded-xl border text-left transition-all ${
-                  cxMode === 'standard'
-                    ? 'bg-emerald-50/60 border-[#006948] ring-1 ring-[#006948]/30 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-bold text-xs mb-1 text-slate-900">
-                  Standard (1-Question)
-                </div>
-                <div className="text-[11px] text-slate-500 leading-snug">
-                  Traditional 1-question per recognized senator. PO calls each questioner individually.
-                </div>
-              </button>
-            </div>
+            <SelectionGroup
+              aria-label="Cross-examination format" value={cxMode} onValueChange={setCxMode}
+              className="grid grid-cols-2" itemClassName="h-full py-3"
+              options={[
+                { value: 'direct', label: 'Direct Questioning', description: '30-second questioning segments between debaters.' },
+                { value: 'standard', label: 'Standard (1-Question)', description: 'One question per recognition, without follow-ups.' },
+              ]}
+            />
           </div>
 
           {/* Author/Sponsor CX Duration */}
@@ -111,41 +85,14 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block font-mono">
               Author / Sponsor Cross-Ex Duration
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setAuthorCxDuration(120)}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  authorCxDuration === 120
-                    ? 'bg-emerald-50/60 border-[#006948] ring-1 ring-[#006948]/30 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-bold text-xs mb-0.5 text-slate-900">
-                  2 Minutes (120s)
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Standard NSDA rules for authorship & first sponsorship.
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setAuthorCxDuration(60)}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  authorCxDuration === 60
-                    ? 'bg-emerald-50/60 border-[#006948] ring-1 ring-[#006948]/30 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-bold text-xs mb-0.5 text-slate-900">
-                  1 Minute (60s)
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Fast-paced or local circuit variation.
-                </div>
-              </button>
-            </div>
+            <SelectionGroup
+              aria-label="Author or sponsor questioning duration" value={String(authorCxDuration)} onValueChange={value => setAuthorCxDuration(Number(value))}
+              className="grid grid-cols-2" itemClassName="h-full py-3"
+              options={[
+                { value: '120', label: '2 Minutes (120s)', description: 'Standard authorship and first sponsorship.' },
+                { value: '60', label: '1 Minute (60s)', description: 'Shorter local circuit variation.' },
+              ]}
+            />
           </div>
 
           {/* Regular Member CX Duration */}
@@ -153,41 +100,14 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
             <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block font-mono">
               Regular Speech Cross-Ex Duration
             </label>
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setRegularCxDuration(60)}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  regularCxDuration === 60
-                    ? 'bg-emerald-50/60 border-[#006948] ring-1 ring-[#006948]/30 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-bold text-xs mb-0.5 text-slate-900">
-                  1 Minute (60s)
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Default across NSDA (two 30s blocks or open 1m).
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setRegularCxDuration(120)}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  regularCxDuration === 120
-                    ? 'bg-emerald-50/60 border-[#006948] ring-1 ring-[#006948]/30 shadow-xs'
-                    : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-bold text-xs mb-0.5 text-slate-900">
-                  2 Minutes (120s)
-                </div>
-                <div className="text-[10px] text-slate-500">
-                  Extended cross-examination format.
-                </div>
-              </button>
-            </div>
+            <SelectionGroup
+              aria-label="Regular speech questioning duration" value={String(regularCxDuration)} onValueChange={value => setRegularCxDuration(Number(value))}
+              className="grid grid-cols-2" itemClassName="h-full py-3"
+              options={[
+                { value: '60', label: '1 Minute (60s)', description: 'Two 30-second blocks or one open minute.' },
+                { value: '120', label: '2 Minutes (120s)', description: 'Extended cross-examination.' },
+              ]}
+            />
           </div>
 
           {/* Grace Period */}
@@ -198,23 +118,17 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
               </label>
               <span className="text-[#006948] font-mono font-bold text-xs">{gracePeriod} seconds</span>
             </div>
-            <div className="flex items-center gap-3 pt-1">
-              <input
-                type="range"
-                min={0}
-                max={15}
-                step={5}
-                value={gracePeriod}
-                onChange={(e) => setGracePeriod(Number(e.target.value))}
-                className="w-full accent-[#006948]"
-              />
-            </div>
-            <div className="flex justify-between text-[10px] text-slate-500 font-mono">
-              <span>0s (Strict)</span>
-              <span>5s</span>
-              <span>10s (Standard NSDA)</span>
-              <span>15s</span>
-            </div>
+            <SelectionGroup
+              aria-label="Speech grace period" value={String(gracePeriod)}
+              onValueChange={value => setGracePeriod(Number(value))}
+              className="grid grid-cols-2 sm:grid-cols-4"
+              options={[
+                { value: '0', label: '0s · Strict' },
+                { value: '5', label: '5s' },
+                { value: '10', label: '10s · Standard' },
+                { value: '15', label: '15s' },
+              ]}
+            />
           </div>
 
           {/* Info footer */}

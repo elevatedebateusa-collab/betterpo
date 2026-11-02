@@ -1,3 +1,4 @@
+import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import type { Representative } from '../lib/supabase';
@@ -143,41 +144,14 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
             <label className="block font-mono text-[11px] uppercase tracking-wider text-slate-600 font-bold mb-1.5">
               Majority Needed
             </label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setThresholdType('majority')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  thresholdType === 'majority'
-                    ? 'bg-emerald-50 text-[#006948] border-2 border-[#006948] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-serif-editorial font-bold text-sm leading-tight">
-                  Simple Majority (&gt;50%)
-                </div>
-                <div className="text-[11px] font-mono text-slate-500 mt-1">
-                  Requires <strong className="text-slate-900">{simpleMajorityThreshold}</strong> of {presentSenators} present
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setThresholdType('two_thirds')}
-                className={`p-3 rounded-xl border text-left transition-all ${
-                  thresholdType === 'two_thirds'
-                    ? 'bg-emerald-50 text-[#006948] border-2 border-[#006948] shadow-xs'
-                    : 'bg-white text-slate-700 border-slate-200 hover:border-slate-300'
-                }`}
-              >
-                <div className="font-serif-editorial font-bold text-sm leading-tight">
-                  2/3 Majority
-                </div>
-                <div className="text-[11px] font-mono text-slate-500 mt-1">
-                  Requires <strong className="text-slate-900">{twoThirdsThreshold}</strong> of {presentSenators} present
-                </div>
-              </button>
-            </div>
+            <SelectionGroup
+              aria-label="Required voting majority" value={thresholdType} onValueChange={setThresholdType}
+              className="grid grid-cols-2" itemClassName="h-full py-3"
+              options={[
+                { value: 'majority', label: 'Simple Majority (>50%)', description: <>Requires {simpleMajorityThreshold} of {presentSenators} present</> },
+                { value: 'two_thirds', label: '2/3 Majority', description: <>Requires {twoThirdsThreshold} of {presentSenators} present</> },
+              ]}
+            />
           </div>
 
           {/* Ayes / Nays / Abstain */}

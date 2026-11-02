@@ -1,3 +1,4 @@
+import { EclipseButton } from '@/components/ui/eclipse-button';
 import React, { useState } from 'react';
 import { ChevronUp, ChevronDown, CheckCircle2, XCircle, ShieldCheck, BookOpen, ExternalLink } from 'lucide-react';
 
@@ -26,10 +27,10 @@ export const SEOFooter: React.FC = () => {
           </a>
         </div>
 
-        <button
+        <EclipseButton
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-slate-800 font-mono text-xs font-semibold transition-all active:scale-[0.98] shadow-xs cursor-pointer"
+          variant="outline" size="sm" className="min-h-9 px-3"
           aria-expanded={isExpanded}
           aria-controls="seo-guide-drawer"
         >
@@ -40,7 +41,7 @@ export const SEOFooter: React.FC = () => {
           ) : (
             <ChevronUp className="w-3.5 h-3.5 text-slate-500" />
           )}
-        </button>
+        </EclipseButton>
       </div>
 
       {/* Semantic Educational Drawer (Always in DOM for Crawlers & LLM Scrapers) */}
