@@ -290,7 +290,7 @@ export const BetterPOLogoSvg: React.FC<{
               better
               <tspan
                 fill="#10b981"
-                fontFamily="'JetBrains Mono', monospace"
+                fontFamily="Geist, Inter, sans-serif"
                 fontWeight="800"
               >
                 po

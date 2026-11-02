@@ -20,7 +20,6 @@ import { chamberService } from '../lib/chamberService';
 import { parseTabroomRecencyList, type ParsedSenator } from '../lib/rosterParser';
 import { BetterPOLogoSvg } from '../components/BetterPOLogoSvg';
 import { GavelTappingLoader } from '../components/GavelTappingLoader';
-import { SEOFooter } from '../components/SEOFooter';
 
 export const ChamberLanding: React.FC = () => {
   const navigate = useNavigate();
@@ -802,7 +801,6 @@ export const ChamberLanding: React.FC = () => {
           </div>
         </div>
       </main>
-      {animStage === 'options_visible' && selectedRole === 'none' && <SEOFooter />}
     </div>
   );
 };

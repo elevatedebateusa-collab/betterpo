@@ -78,7 +78,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   useEffect(() => {
     if (autoStartTrigger > 0 && isPO) {
       const targetMode = autoStartConfig?.mode || 'speech';
-      const targetDuration = autoStartConfig?.duration || (targetMode === 'speech' ? 190 : 60);
+      const targetDuration = autoStartConfig?.duration || (targetMode === 'speech' ? 190 : 30);
 
       setDuration(targetDuration);
       setSecondsLeft(targetDuration);
@@ -318,7 +318,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   const handlePresetSelection = (value: string) => {
     if (value === 'speech') applyPreset(190, 'speech');
     else if (value === 'author') applyPreset(120, 'question');
-    else if (value === 'question') applyPreset(60, 'question');
+    else if (value === 'question') applyPreset(30, 'question');
     else if (value === 'recess') applyPreset(300, 'recess');
   };
 
@@ -490,13 +490,12 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
             {/* Presets Grid */}
             <SelectionGroup
               aria-label="Timer preset"
-              value={mode === 'recess' ? 'recess' : mode === 'speech' && duration === 190 ? 'speech' : mode === 'question' && duration === 120 ? 'author' : mode === 'question' && duration === 60 ? 'question' : ''}
+              value={mode === 'recess' ? 'recess' : mode === 'speech' && duration === 190 ? 'speech' : mode === 'question' && duration === 30 ? 'question' : ''}
               onValueChange={handlePresetSelection} onReselect={handlePresetSelection} size="xs"
               className="grid grid-cols-2 sm:grid-cols-4 gap-1" itemClassName="min-w-0 px-1.5"
               options={[
                 { value: 'speech', label: '3:10 Spk' },
-                { value: 'author', label: '2:00 CX', title: 'Authorship or sponsorship questioning' },
-                { value: 'question', label: '1:00 CX', title: 'Regular speech questioning' },
+                { value: 'question', label: '0:30 CX', title: 'Questioning' },
                 { value: 'recess', label: '5m Recess' },
               ]}
             />

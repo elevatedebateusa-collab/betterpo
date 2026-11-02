@@ -1,9 +1,9 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import type { Room, Representative, RoundAction, TimerBroadcastPayload } from '../types/database';
 
-// Safe fallbacks to prevent any crash during initialization
-const FALLBACK_URL = 'https://placeholder.supabase.co';
-const FALLBACK_KEY = 'placeholder-anon-key';
+// Default Production Cloud Endpoints for Elevate Chamber
+const DEFAULT_SUPABASE_URL = 'https://mzzjuzrfgbyttictyewi.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_gBW1bTH8v5jKTg_E5gFq6Q_s4XUvNfR';
 
 // Check environment variables via Vite import.meta.env (NEVER process.env in client Vite)
 const envUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
@@ -11,15 +11,18 @@ const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPA
 const localUrl = typeof window !== 'undefined' ? localStorage.getItem('elevate_supabase_url') || '' : '';
 const localKey = typeof window !== 'undefined' ? localStorage.getItem('elevate_supabase_anon_key') || '' : '';
 
-export const SUPABASE_URL = localUrl || envUrl || FALLBACK_URL;
-export const SUPABASE_ANON_KEY = localKey || envKey || FALLBACK_KEY;
+const rawUrl = envUrl || localUrl || DEFAULT_SUPABASE_URL;
+const rawKey = envKey || localKey || DEFAULT_SUPABASE_ANON_KEY;
+
+export const SUPABASE_URL = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+export const SUPABASE_ANON_KEY = rawKey.trim();
 
 export const isSupabaseConfigured = Boolean(
-  (localUrl || envUrl) && 
-  (localKey || envKey) && 
-  (localUrl || envUrl).startsWith('http') && 
-  !(localUrl || envUrl).includes('your-project') &&
-  !(localUrl || envUrl).includes('placeholder')
+  SUPABASE_URL && 
+  SUPABASE_ANON_KEY && 
+  SUPABASE_URL.startsWith('http') && 
+  !SUPABASE_URL.includes('your-project') &&
+  !SUPABASE_URL.includes('placeholder')
 );
 
 let initializedSupabase: SupabaseClient | null = null;

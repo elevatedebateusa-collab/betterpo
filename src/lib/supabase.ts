@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 export type RoomStatus = 'in_session' | 'recess' | 'adjourned';
 export type TimerStatus = 'running' | 'paused' | 'reset';
 export type TimerMode = 'speech' | 'dq' | 'question' | 'recess' | 'custom';
+export type AmendmentStage = 'pending_second' | 'debate' | 'previous_question' | 'final_vote';
 export type EventType = 
   | 'speech_aff' 
   | 'speech_neg' 
@@ -30,6 +31,7 @@ export interface AmendmentState {
   speeches_count: number;
   last_speech_side: 'aff' | 'neg' | null;
   created_at: string;
+  stage?: AmendmentStage;
 }
 
 export interface Bill {
@@ -150,10 +152,14 @@ export interface TimerBroadcastPayload {
 
 export const DEFAULT_CHAMBER_SETTINGS: ChamberSettings = {
   cx_mode: 'direct',
-  author_cx_duration: 120, // 2 minutes
-  regular_cx_duration: 60,
+  author_cx_duration: 30,
+  regular_cx_duration: 30,
   grace_period: 10,
 };
+
+// Default Production Cloud Endpoints for Elevate Chamber
+const DEFAULT_SUPABASE_URL = 'https://mzzjuzrfgbyttictyewi.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_gBW1bTH8v5jKTg_E5gFq6Q_s4XUvNfR';
 
 // Credentials - Vite uses import.meta.env, never process.env
 const envUrl = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPABASE_URL) || '';
@@ -161,15 +167,19 @@ const envKey = (typeof import.meta !== 'undefined' && import.meta.env?.VITE_SUPA
 const localUrl = typeof window !== 'undefined' ? localStorage.getItem('elevate_supabase_url') || '' : '';
 const localKey = typeof window !== 'undefined' ? localStorage.getItem('elevate_supabase_anon_key') || '' : '';
 
-export const SUPABASE_URL = localUrl || envUrl || 'https://placeholder.supabase.co';
-export const SUPABASE_ANON_KEY = localKey || envKey || 'placeholder-anon-key';
+const rawUrl = envUrl || localUrl || DEFAULT_SUPABASE_URL;
+const rawKey = envKey || localKey || DEFAULT_SUPABASE_ANON_KEY;
+
+// Clean and normalize base URL (strip trailing slashes and /rest/v1 if included)
+export const SUPABASE_URL = rawUrl.replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '');
+export const SUPABASE_ANON_KEY = rawKey.trim();
 
 export const isSupabaseConfigured = Boolean(
-  (localUrl || envUrl) && 
-  (localKey || envKey) && 
-  (localUrl || envUrl).startsWith('http') && 
-  !(localUrl || envUrl).includes('your-project') &&
-  !(localUrl || envUrl).includes('placeholder')
+  SUPABASE_URL && 
+  SUPABASE_ANON_KEY && 
+  SUPABASE_URL.startsWith('http') && 
+  !SUPABASE_URL.includes('your-project') &&
+  !SUPABASE_URL.includes('placeholder')
 );
 
 let initializedSupabase: SupabaseClient | null = null;

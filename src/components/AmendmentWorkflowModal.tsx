@@ -10,6 +10,7 @@ interface AmendmentWorkflowModalProps {
   representatives: Representative[];
   onStartAmendment: (authorId: string, authorName: string, text: string) => Promise<void>;
   onConcludeAmendment: (passed: boolean, motionNotes?: string) => Promise<void>;
+  onRequestVote: (title: string, threshold: 'one_third' | 'two_thirds' | 'majority') => void;
 }
 
 export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
@@ -20,6 +21,7 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
   representatives,
   onStartAmendment,
   onConcludeAmendment,
+  onRequestVote,
 }) => {
   const [authorId, setAuthorId] = useState('');
   const [amendmentText, setAmendmentText] = useState('');
@@ -29,6 +31,7 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
   if (!isOpen) return null;
 
   const activeAmendment = room.active_amendment;
+  const amendmentStage = activeAmendment?.stage || 'debate';
   const activeBill = bills.find((b) => b.status === 'active') || null;
   const presentReps = representatives.filter((r) => r.is_present);
 
@@ -112,8 +115,12 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                 </div>
 
                 <p className="text-xs text-amber-800 leading-normal">
-                  Debate is currently restricted to this amendment. Speeches awarded will be stamped as amendment debate. Main bill debate resumes once this amendment is voted upon or withdrawn.
+                  {amendmentStage === 'pending_second' ? 'The motion to consider this amendment requires a one-third vote before debate begins.' : amendmentStage === 'debate' ? 'Debate is restricted to this amendment. Use the normal speech controls; each recognized speech is recorded as amendment debate.' : amendmentStage === 'previous_question' ? 'Previous question has been moved. A two-thirds vote is required before the amendment is put to a final vote.' : 'Previous question passed. The amendment now requires a simple majority vote.'}
                 </p>
+
+                {amendmentStage === 'pending_second' && <button type="button" disabled={submitting} onClick={() => onRequestVote('Motion to Consider Amendment (1/3)', 'one_third')} className="w-full px-4 py-3 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold text-xs disabled:opacity-50">Record 1/3 Vote to Consider Amendment</button>}
+                {amendmentStage === 'debate' && <button type="button" disabled={submitting} onClick={() => onRequestVote('Previous Question on Amendment (2/3)', 'two_thirds')} className="w-full px-4 py-3 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs disabled:opacity-50">Move to Previous Question (2/3)</button>}
+                {amendmentStage === 'previous_question' && <button type="button" disabled={submitting} onClick={() => onRequestVote('Adoption of Amendment (Simple Majority)', 'majority')} className="w-full px-4 py-3 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold text-xs disabled:opacity-50">Vote on Amendment (Simple Majority)</button>}
               </div>
 
               {/* Vote notes input */}
@@ -131,7 +138,7 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
               </div>
 
               {/* Conclude Actions */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
+              {activeAmendment.stage === 'final_vote' && <div className="grid grid-cols-2 gap-3 pt-2">
                 <button
                   type="button"
                   disabled={submitting}
@@ -149,7 +156,7 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                 >
                   Reject Amendment (Failed)
                 </button>
-              </div>
+              </div>}
             </div>
           ) : (
             /* NEW AMENDMENT CREATION */

@@ -23,6 +23,7 @@ import { DocketTracker } from '../components/DocketTracker';
 import { QuorumVotingBar } from '../components/QuorumVotingBar';
 import { AmendmentWorkflowModal } from '../components/AmendmentWorkflowModal';
 import { ChamberSettingsModal } from '../components/ChamberSettingsModal';
+import { DocketNominationModal } from '../components/DocketNominationModal';
 import { BetterPOLoader } from '../components/BetterPOLoader';
 
 export const PODashboard: React.FC = () => {
@@ -50,6 +51,7 @@ export const PODashboard: React.FC = () => {
   // Modals & Controls
   const [showRosterModal, setShowRosterModal] = useState<boolean>(false);
   const [showDocketModal, setShowDocketModal] = useState<boolean>(false);
+  const [showDocketNominationModal, setShowDocketNominationModal] = useState<boolean>(false);
   const [showAmendmentModal, setShowAmendmentModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showAuditLogFull, setShowAuditLogFull] = useState<boolean>(false);
@@ -65,7 +67,7 @@ export const PODashboard: React.FC = () => {
   // Vote Calculator & Previous Question (PQ) State
   const [showVoteModal, setShowVoteModal] = useState<boolean>(false);
   const [voteModalMotionName, setVoteModalMotionName] = useState<string>('Previous Question (Close Debate)');
-  const [voteModalThreshold, setVoteModalThreshold] = useState<'majority' | 'two_thirds'>('two_thirds');
+  const [voteModalThreshold, setVoteModalThreshold] = useState<'one_third' | 'majority' | 'two_thirds'>('two_thirds');
   const [isPQFlow, setIsPQFlow] = useState<boolean>(false);
 
   // Toast Helper
@@ -273,28 +275,6 @@ export const PODashboard: React.FC = () => {
     return { nextSpeechDisplay: display, nextSpeechSide: side, affCount, negCount };
   }, [roundEvents, activeBill?.id, room?.last_speech_side]);
 
-  // Check if current speech on floor is Authorship / First Sponsorship
-  const isCurrentAuthorshipSpeech = useMemo(() => {
-    const billEvents = roundEvents.filter((e) => {
-      if (activeBill?.id && e.bill_id) {
-        return e.bill_id === activeBill.id;
-      }
-      return true;
-    });
-
-    const speechEvents = billEvents.filter((e) => e.event_type.startsWith('speech_'));
-    if (speechEvents.length === 0) {
-      return true;
-    }
-
-    const latestSpeech = speechEvents[0];
-    return (
-      latestSpeech.event_type === 'speech_author' ||
-      latestSpeech.event_type === 'speech_sponsor' ||
-      speechEvents.length === 1
-    );
-  }, [roundEvents, activeBill]);
-
   // Toggle standing state for a debater
   const handleToggleStanding = (id: string) => {
     setStandingIds((prev) => {
@@ -374,6 +354,35 @@ export const PODashboard: React.FC = () => {
     showToast('Docket order updated');
   };
 
+  const handleAdoptDocket = async (orderedBills: Array<{ billNumber: string; title: string; authorSchool?: string }>) => {
+    if (!room) return;
+    try {
+      const created = await chamberService.setDocketBills(room.id, orderedBills);
+      if (created.length > 0) {
+        await chamberService.setActiveBill(room, created[0]);
+      }
+      const docketSummary = created.map((b) => b.bill_number).join(' → ');
+      await chamberService.logCustomEvent(
+        room.id,
+        '00000000-0000-0000-0000-000000000000',
+        'motion_vote',
+        `Docket Order Adopted: ${docketSummary}`
+      );
+      const [updatedRoom, freshBills, events] = await Promise.all([
+        chamberService.getRoomByCode(room.code),
+        chamberService.getBills(room.id),
+        chamberService.getRoundEvents(room.id, 50),
+      ]);
+      if (updatedRoom) setRoom(updatedRoom);
+      setBills(freshBills);
+      setRoundEvents(events);
+      setShowDocketNominationModal(false);
+      showToast(`Round started with docket: ${docketSummary}`);
+    } catch (err: unknown) {
+      showToast(err instanceof Error ? err.message : 'Error adopting docket');
+    }
+  };
+
   const handleUpdateBillStatus = async (billId: string, status: Bill['status']) => {
     const updated = await chamberService.updateBill(billId, { status });
     if (updated) {
@@ -443,13 +452,10 @@ export const PODashboard: React.FC = () => {
       setStandingIds(new Set());
 
       if (isSpeech) {
-        setTimerConfig({ mode: 'speech', duration: 190 });
-        setTimerAutoTrigger((prev) => prev + 1);
         showToast(`Recognized ${rep.name} for ${eventType.replace('speech_', '').toUpperCase()}`);
       } else if (eventType === 'question') {
-        const cxDuration = isCurrentAuthorshipSpeech
-          ? (room.settings?.author_cx_duration ?? 120)
-          : (room.settings?.regular_cx_duration ?? 60);
+        // Every question starts a fresh 30-second CX timer automatically.
+        const cxDuration = 30;
 
         setTimerConfig({
           mode: 'question',
@@ -458,7 +464,7 @@ export const PODashboard: React.FC = () => {
         });
         setTimerAutoTrigger((prev) => prev + 1);
         showToast(
-          `Recognized ${rep.name} for QUESTION (${isCurrentAuthorshipSpeech ? 'Author CX • 2:00' : 'Regular CX • 1:00'})`
+          `Recognized ${rep.name} for QUESTION (30-second CX)`
         );
       } else {
         showToast(`Recognized ${rep.name} for ${eventType.replace('speech_', '').toUpperCase()}`);
@@ -537,18 +543,44 @@ export const PODashboard: React.FC = () => {
     }
   };
 
+  const handleAmendmentVoteRequest = (title: string, threshold: 'one_third' | 'two_thirds' | 'majority') => {
+    setVoteModalMotionName(title);
+    setVoteModalThreshold(threshold);
+    setIsPQFlow(false);
+    setShowVoteModal(true);
+  };
+
   // Motion Vote Logging & Previous Question Docket Progression
   const handleSaveMotionVote = async (
     title: string,
     ayes: number,
     nays: number,
     abstains: number,
-    threshold: 'majority' | 'two_thirds',
+    threshold: 'one_third' | 'majority' | 'two_thirds',
     passed: boolean,
     advanceNextBill?: boolean
   ) => {
     if (!room) return;
     await chamberService.logMotionVote(room.id, title, ayes, nays, abstains, threshold, passed);
+
+    // Amendment procedure: consideration (1/3), debate, previous question
+    // (2/3), then adoption by simple majority.
+    if (room.active_amendment && title.includes('Amendment')) {
+      if (passed && threshold === 'one_third') {
+        const updated = await chamberService.setAmendmentStage(room, 'debate');
+        setRoom(updated);
+        showToast('Amendment is properly before the chamber; debate may begin.');
+      } else if (passed && threshold === 'two_thirds') {
+        const updated = await chamberService.setAmendmentStage(room, 'previous_question');
+        setRoom(updated);
+        showToast('Previous question passed on the amendment. Proceed to the final vote.');
+      } else if (threshold === 'majority') {
+        await handleConcludeAmendment(passed, `${ayes}-${nays}-${abstains}`);
+      }
+      const amendmentEvents = await chamberService.getRoundEvents(room.id, 50);
+      setRoundEvents(amendmentEvents);
+      return;
+    }
 
     if (advanceNextBill) {
       const currentBill = activeBill || bills.find((b) => b.id === room.active_bill_id);
@@ -719,6 +751,17 @@ export const PODashboard: React.FC = () => {
         onReorderBills={handleReorderBills}
       />
 
+      {/* Docket Nomination & Voting Modal */}
+      {room && (
+        <DocketNominationModal
+          isOpen={showDocketNominationModal}
+          onClose={() => setShowDocketNominationModal(false)}
+          room={room}
+          representatives={representatives}
+          onAdoptDocket={handleAdoptDocket}
+        />
+      )}
+
       {/* Amendment Workflow Modal */}
       <AmendmentWorkflowModal
         isOpen={showAmendmentModal}
@@ -728,6 +771,7 @@ export const PODashboard: React.FC = () => {
         representatives={representatives}
         onStartAmendment={handleStartAmendment}
         onConcludeAmendment={handleConcludeAmendment}
+        onRequestVote={handleAmendmentVoteRequest}
       />
 
       {/* Chamber Rules & Settings Modal */}
@@ -861,6 +905,22 @@ export const PODashboard: React.FC = () => {
           </div>
         </div>
       </section>
+
+      {/* Indicator when no docket is set yet — gone once docket is set */}
+      {bills.length === 0 && (
+        <section className="bg-emerald-50/80 border-b border-emerald-200 px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-emerald-950">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+            <span>Chamber docket is currently open for nominations.</span>
+          </div>
+          <button
+            onClick={() => setShowDocketNominationModal(true)}
+            className="px-3.5 py-1.5 rounded-lg bg-[#006948] hover:bg-[#005137] text-white font-bold transition-all shadow-xs shrink-0 active:scale-[0.98]"
+          >
+            Open the floor for docket nomination
+          </button>
+        </section>
+      )}
 
       {/* ========================================================
           ACTIVE AMENDMENT WARNING BANNER (IF APPLICABLE)
@@ -1060,10 +1120,6 @@ export const PODashboard: React.FC = () => {
               <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-xs space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="shrink-0 px-2.5 py-1 rounded-full bg-emerald-50 text-[#006948] border border-emerald-200/80 font-mono text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                      <Award className="w-3 h-3 text-[#006948]" />
-                      Rank #1 • Award Floor
-                    </span>
                     <span className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight truncate" title={winner.name}>
                       {extractLastName(winner.name)}
                     </span>
@@ -1094,7 +1150,7 @@ export const PODashboard: React.FC = () => {
                       onClick={() => handleAwardAction(winner, 'question')}
                       className="w-full py-3 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs"
                     >
-                      Give Question ({isCurrentAuthorshipSpeech ? 'Author CX • 2:00' : 'Regular CX • 1:00'})
+                      Give Question (30s CX)
                     </button>
                     <div className="grid grid-cols-3 gap-2">
                       <button
@@ -1141,7 +1197,7 @@ export const PODashboard: React.FC = () => {
                       onClick={() => handleAwardAction(winner, 'question')}
                       className="py-2.5 px-3 rounded-xl font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
                     >
-                      Give Question ({isCurrentAuthorshipSpeech ? '2:00' : '1:00'})
+                      Give Question (30s)
                     </button>
                   </div>
                 )}

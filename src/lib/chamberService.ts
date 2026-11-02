@@ -153,7 +153,10 @@ export const chamberService = {
 
       if (error) {
         console.error('Error fetching room:', error);
-        return null;
+        // A database/network failure must not look like a valid code that was
+        // simply not found. The join screen can then give the user an action
+        // they can take instead of asking them to retype a correct code.
+        throw new Error('Unable to reach the chamber database. Please check the live Supabase connection and try again.');
       }
       return data as Room | null;
     } else {
@@ -609,6 +612,7 @@ export const chamberService = {
       speeches_count: 0,
       last_speech_side: null,
       created_at: new Date().toISOString(),
+      stage: 'pending_second',
     };
 
     const updatedRoom = await this.updateRoom(room.id, {
@@ -624,6 +628,14 @@ export const chamberService = {
     );
 
     return updatedRoom || { ...room, active_amendment: amendment };
+  },
+
+  async setAmendmentStage(room: Room, stage: NonNullable<AmendmentState['stage']>): Promise<Room> {
+    if (!room.active_amendment) return room;
+    const updatedRoom = await this.updateRoom(room.id, {
+      active_amendment: { ...room.active_amendment, stage },
+    });
+    return updatedRoom || { ...room, active_amendment: { ...room.active_amendment, stage } };
   },
 
   async concludeAmendment(
@@ -671,11 +683,13 @@ export const chamberService = {
     ayes: number,
     nays: number,
     abstains: number = 0,
-    thresholdType: 'majority' | 'two_thirds',
+    thresholdType: 'one_third' | 'majority' | 'two_thirds',
     passed: boolean
   ): Promise<RoundEvent> {
     const totalVotes = ayes + nays;
-    const requiredThreshold = thresholdType === 'majority' ? 'Simple Majority (>50%)' : '2/3 Majority';
+    const requiredThreshold = thresholdType === 'one_third'
+      ? 'One-Third'
+      : thresholdType === 'majority' ? 'Simple Majority (>50%)' : '2/3 Majority';
     const description = `VOTE on "${motionName}": Ayes: ${ayes}, Nays: ${nays}, Abstains: ${abstains} (Total: ${totalVotes}) [${requiredThreshold}] → ${
       passed ? 'PASSED / ADOPTED' : 'FAILED'
     }`;

@@ -17,8 +17,6 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
   onSaveSettings
 }) => {
   const [cxMode, setCxMode] = useState<'direct' | 'standard'>(room.settings?.cx_mode || 'direct');
-  const [authorCxDuration, setAuthorCxDuration] = useState<number>(room.settings?.author_cx_duration ?? 120);
-  const [regularCxDuration, setRegularCxDuration] = useState<number>(room.settings?.regular_cx_duration ?? 60);
   const [gracePeriod, setGracePeriod] = useState<number>(room.settings?.grace_period ?? 10);
   const [saving, setSaving] = useState(false);
 
@@ -30,8 +28,8 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
     try {
       await onSaveSettings({
         cx_mode: cxMode,
-        author_cx_duration: authorCxDuration,
-        regular_cx_duration: regularCxDuration,
+        author_cx_duration: 30,
+        regular_cx_duration: 30,
         grace_period: gracePeriod
       });
       onClose();
@@ -80,34 +78,8 @@ export const ChamberSettingsModal: React.FC<ChamberSettingsModalProps> = ({
             />
           </div>
 
-          {/* Author/Sponsor CX Duration */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block font-mono">
-              Author / Sponsor Cross-Ex Duration
-            </label>
-            <SelectionGroup
-              aria-label="Author or sponsor questioning duration" value={String(authorCxDuration)} onValueChange={value => setAuthorCxDuration(Number(value))}
-              className="grid grid-cols-2" itemClassName="h-full py-3"
-              options={[
-                { value: '120', label: '2 Minutes (120s)', description: 'Standard authorship and first sponsorship.' },
-                { value: '60', label: '1 Minute (60s)', description: 'Shorter local circuit variation.' },
-              ]}
-            />
-          </div>
-
-          {/* Regular Member CX Duration */}
-          <div className="space-y-2">
-            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block font-mono">
-              Regular Speech Cross-Ex Duration
-            </label>
-            <SelectionGroup
-              aria-label="Regular speech questioning duration" value={String(regularCxDuration)} onValueChange={value => setRegularCxDuration(Number(value))}
-              className="grid grid-cols-2" itemClassName="h-full py-3"
-              options={[
-                { value: '60', label: '1 Minute (60s)', description: 'Two 30-second blocks or one open minute.' },
-                { value: '120', label: '2 Minutes (120s)', description: 'Extended cross-examination.' },
-              ]}
-            />
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-3 text-xs text-emerald-900">
+            Questioning timer: <strong>30 seconds</strong> per question.
           </div>
 
           {/* Grace Period */}

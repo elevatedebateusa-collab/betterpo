@@ -10,14 +10,14 @@ interface QuorumVotingBarProps {
     ayes: number,
     nays: number,
     abstains: number,
-    threshold: 'majority' | 'two_thirds',
+    threshold: 'one_third' | 'majority' | 'two_thirds',
     passed: boolean,
     advanceNextBill?: boolean
   ) => Promise<void>;
   isOpen?: boolean;
   onOpenChange?: (open: boolean) => void;
   initialMotionName?: string;
-  initialThreshold?: 'majority' | 'two_thirds';
+  initialThreshold?: 'one_third' | 'majority' | 'two_thirds';
   isPQFlow?: boolean;
 }
 
@@ -31,7 +31,7 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
   isPQFlow = false,
 }) => {
   const [motionName, setMotionName] = useState<string>(initialMotionName || '');
-  const [thresholdType, setThresholdType] = useState<'majority' | 'two_thirds'>(initialThreshold);
+  const [thresholdType, setThresholdType] = useState<'one_third' | 'majority' | 'two_thirds'>(initialThreshold);
   const [ayes, setAyes] = useState<number>(0);
   const [nays, setNays] = useState<number>(0);
   const [abstains, setAbstains] = useState<number>(0);
@@ -62,9 +62,12 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
 
   // 2/3 Majority: >= 2/3 of members present
   const twoThirdsThreshold = Math.ceil((2 * presentSenators) / 3);
+  const oneThirdThreshold = Math.ceil(presentSenators / 3);
 
   // Target requirement
-  const targetThreshold = thresholdType === 'majority' ? simpleMajorityThreshold : twoThirdsThreshold;
+  const targetThreshold = thresholdType === 'one_third'
+    ? oneThirdThreshold
+    : thresholdType === 'majority' ? simpleMajorityThreshold : twoThirdsThreshold;
   const votePassed = ayes >= targetThreshold;
 
   const handleVoteSubmit = async (e: React.FormEvent) => {
@@ -148,6 +151,7 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
               aria-label="Required voting majority" value={thresholdType} onValueChange={setThresholdType}
               className="grid grid-cols-2" itemClassName="h-full py-3"
               options={[
+                { value: 'one_third', label: 'One-Third', description: <>Requires {oneThirdThreshold} of {presentSenators} present</> },
                 { value: 'majority', label: 'Simple Majority (>50%)', description: <>Requires {simpleMajorityThreshold} of {presentSenators} present</> },
                 { value: 'two_thirds', label: '2/3 Majority', description: <>Requires {twoThirdsThreshold} of {presentSenators} present</> },
               ]}
@@ -228,7 +232,7 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
                 {votePassed ? 'MOTION ADOPTED (PASSES)' : 'MOTION FAILS'}
               </div>
               <div className="text-[11px] font-mono text-slate-600">
-                {ayes} Ayes vs. {targetThreshold} required ({thresholdType === 'majority' ? '>50%' : '2/3'})
+                {ayes} Ayes vs. {targetThreshold} required ({thresholdType === 'one_third' ? '1/3' : thresholdType === 'majority' ? '>50%' : '2/3'})
               </div>
             </div>
           </div>

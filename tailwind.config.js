@@ -45,11 +45,11 @@ export default {
       },
       fontFamily: {
         sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"],
-        mono: ["'JetBrains Mono'", "Space Mono", "monospace"],
+        mono: ["Geist", "Inter", "sans-serif"],
         serif: ["Literata", "Georgia", "serif"],
         hand: ["Patrick Hand", "Caveat", "cursive"],
         script: ["Caveat", "cursive"],
-        type: ["'JetBrains Mono'", "Space Mono", "monospace"],
+        type: ["Geist", "Inter", "sans-serif"],
       },
       boxShadow: {
         paper: "2px 3px 0px rgba(60, 48, 38, 0.12)",
