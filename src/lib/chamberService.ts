@@ -439,7 +439,13 @@ export const chamberService = {
           active_bill_id: bill.id,
           current_legislation: billLegislation,
           last_speech_side: null,
+          current_speaker_id: null, // Clear previous speaker so floor is clear for new bill
           active_amendment: null, // Clear any dangling amendment
+          timer_status: 'reset',
+          timer_remaining_seconds: 190,
+          timer_duration: 190,
+          timer_mode: 'speech',
+          timer_updated_at: new Date().toISOString(),
         })
         .eq('id', room.id)
         .select()
@@ -461,7 +467,13 @@ export const chamberService = {
         active_bill_id: bill.id,
         current_legislation: billLegislation,
         last_speech_side: null,
+        current_speaker_id: null, // Clear previous speaker so floor is clear for new bill
         active_amendment: null,
+        timer_status: 'reset',
+        timer_remaining_seconds: 190,
+        timer_duration: 190,
+        timer_mode: 'speech',
+        timer_updated_at: new Date().toISOString(),
       };
       saveStoredRooms(getStoredRooms().map((r) => (r.id === room.id ? updatedRoom : r)));
 

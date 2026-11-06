@@ -378,7 +378,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                     rows={6}
                     value={bulkText}
                     onChange={(e) => setBulkText(e.target.value)}
-                    placeholder={`Bill 1: A Resolution to Expand High-Speed Passenger Rail\nBill 2: An Act to Reform Capital Gains Taxation\nBill 3: A Bill to Protect Whistleblowers in AI Safety`}
+                    placeholder=""
                     className="w-full bg-white border border-slate-200 rounded-xl p-3 text-xs font-mono text-slate-900 focus:outline-none focus:border-[#006948] focus:ring-1 focus:ring-[#006948]"
                   />
                   <div className="flex justify-end gap-2">
@@ -402,7 +402,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
               ) : (
                 /* Individual Bill Input Rows */
                 <div className="space-y-2">
-                  {poolBills.map((bill, index) => (
+                  {poolBills.map((bill) => (
                     <div
                       key={bill.id}
                       className="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200/90 shadow-2xs"
@@ -411,21 +411,21 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                         type="text"
                         value={bill.billNumber}
                         onChange={(e) => handleUpdatePoolBill(bill.id, 'billNumber', e.target.value)}
-                        placeholder={`Bill ${index + 1}`}
+                        placeholder=""
                         className="w-24 sm:w-28 font-mono text-xs font-bold text-slate-900 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#006948]"
                       />
                       <input
                         type="text"
                         value={bill.title}
                         onChange={(e) => handleUpdatePoolBill(bill.id, 'title', e.target.value)}
-                        placeholder="e.g. A Bill to Reform Corporate Taxation..."
+                        placeholder=""
                         className="flex-1 text-xs text-slate-900 bg-white border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:border-[#006948]"
                       />
                       <input
                         type="text"
                         value={bill.authorSchool || ''}
                         onChange={(e) => handleUpdatePoolBill(bill.id, 'authorSchool', e.target.value)}
-                        placeholder="School (Optional)"
+                        placeholder=""
                         className="w-28 sm:w-36 text-xs text-slate-600 bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-[#006948] hidden sm:block"
                       />
                       <button
@@ -486,7 +486,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                             type="text"
                             value={slate.name}
                             onChange={(e) => handleUpdateSlateName(slate.id, e.target.value)}
-                            placeholder={`Docket Slate ${sIdx + 1}`}
+                            placeholder=""
                             className="font-bold text-xs text-slate-900 bg-white border border-slate-200 rounded-lg px-2.5 py-1 flex-1 focus:outline-none focus:border-[#006948]"
                           />
                         </div>
@@ -710,36 +710,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                 })}
               </div>
 
-              {/* Official Winner Banner */}
-              {activeWinner && (
-                <div className="bg-[#006948] text-white p-4 rounded-2xl shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 animate-fade-in font-sans">
-                  <div className="space-y-0.5">
-                    <div className="text-[11px] font-mono uppercase tracking-wider text-emerald-200 font-bold">
-                      Winning Docket Established
-                    </div>
-                    <div className="text-base font-bold">
-                      {activeWinner.name} will be the official chamber docket
-                    </div>
-                    <div className="text-xs text-emerald-100 font-mono">
-                      First bill on the floor will be:{' '}
-                      <strong className="text-white">
-                        {validPoolBills.find((b) => b.id === activeWinner.billIds[0])?.billNumber || 'Bill 1'}:{' '}
-                        {validPoolBills.find((b) => b.id === activeWinner.billIds[0])?.title || 'General Orders'}
-                      </strong>
-                    </div>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleFinalAdopt}
-                    disabled={isSubmitting}
-                    className="px-5 py-2.5 rounded-xl bg-white hover:bg-emerald-50 text-[#006948] font-mono font-bold text-xs shadow-md transition-all active:scale-[0.98] shrink-0 disabled:opacity-50"
-                  >
-                    {isSubmitting ? 'Starting Round...' : 'Adopt Docket & Start Round →'}
-                  </button>
-                </div>
-              )}
-            </TabsContent>
+              </TabsContent>
 
         </div>
 

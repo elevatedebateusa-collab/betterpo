@@ -30,16 +30,16 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
   );
 
   return (
-    <div className="rounded-xl bg-white border border-slate-200 shadow-[0_1px_3px_rgba(0,0,0,0.02)] flex flex-col h-full min-h-0 overflow-hidden font-sans">
+    <div className="rounded-[22px] bg-white border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col h-full min-h-0 overflow-hidden font-sans">
       {/* Header */}
       <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-white">
-        <span className="font-mono font-bold text-xs text-slate-800 uppercase tracking-wider">
+        <span className="font-po-ui font-semibold text-xs text-slate-800 tracking-wide uppercase">
           RECENCY LADDER
         </span>
 
         {/* Tab Toggle */}
         <SelectionGroup
-          aria-label="Recency ladder mode" value={mode} onValueChange={setMode} size="xs"
+          aria-label="Recency ladder mode" value={mode} onValueChange={setMode} size="xs" 
           options={[{ value: 'speech', label: 'Speeches' }, { value: 'question', label: 'Questions' }]}
         />
       </div>
@@ -89,7 +89,7 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
 
                 {/* Senator Name & School */}
                 <div className="col-span-4 truncate">
-                  <div className="font-serif-editorial font-bold text-slate-900 truncate text-[12.5px]">
+                  <div className="font-po-ui font-semibold text-slate-800 truncate text-[12.5px]">
                     {rep.name}
                   </div>
                   {rep.school && (
@@ -99,21 +99,9 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
                   )}
                 </div>
 
-                {/* Count Badge */}
-                <div className="col-span-2 text-center">
-                  <span
-                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                      mode === 'speech'
-                        ? rep.speeches_count === 0
-                          ? 'bg-emerald-100 text-emerald-800'
-                          : 'bg-slate-100 text-slate-700'
-                        : rep.questions_count === 0
-                        ? 'bg-emerald-100 text-emerald-800'
-                        : 'bg-slate-100 text-slate-700'
-                    }`}
-                  >
-                    {mode === 'speech' ? rep.speeches_count : rep.questions_count}
-                  </span>
+                {/* Plain Text Counter */}
+                <div className="col-span-2 text-center font-mono text-xs tabular-nums font-medium text-slate-600">
+                  {mode === 'speech' ? rep.speeches_count : rep.questions_count}
                 </div>
 
                 {/* Recency Order */}

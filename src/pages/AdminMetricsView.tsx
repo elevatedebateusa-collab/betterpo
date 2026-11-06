@@ -387,7 +387,6 @@ export const AdminMetricsView: React.FC = () => {
             </div>
 
             <div className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-mono text-[11px] font-semibold">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>LIVE CLUSTER ONLINE</span>
             </div>
           </div>
@@ -668,7 +667,6 @@ export const AdminMetricsView: React.FC = () => {
                         <td className="py-3.5 px-3">
                           {isLive ? (
                             <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold tracking-wider">
-                              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                               LIVE
                             </span>
                           ) : isRecess ? (

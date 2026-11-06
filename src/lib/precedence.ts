@@ -128,3 +128,117 @@ export function formatPriorityReason(rep: Representative, mode: 'speech' | 'ques
     return `${countStr} • ${orderStr}`;
   }
 }
+
+/**
+ * Returns the English ordinal string for a number (e.g. 1 -> "1st", 2 -> "2nd", 3 -> "3rd").
+ */
+export function getOrdinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+export interface SpeechAnalysis {
+  eventId: string;
+  representativeId: string;
+  eventType: string;
+  overallNumber: number;
+  side: 'aff' | 'neg';
+  sideNumber: number;
+  label: string; // e.g. "1st Negative", "2nd Negative", "Authorship (Affirmative)", "2nd Affirmative"
+  fullLabel: string; // e.g. "Speech #2: 1st Negative"
+}
+
+/**
+ * Analyzes speech events on a bill in chronological order.
+ * Dynamically computes which exact Aff (1st, 2nd, 3rd...) or Neg (1st, 2nd, 3rd...) each speech
+ * actually is based on true count, rather than assuming strict alternating order.
+ */
+export function analyzeBillSpeeches(
+  roundEvents: Array<{
+    id: string;
+    bill_id?: string | null;
+    representative_id: string;
+    event_type: string;
+    sequence_number?: number;
+    created_at: string;
+  }>,
+  activeBillId?: string | null
+): {
+  speeches: SpeechAnalysis[];
+  affCount: number;
+  negCount: number;
+  totalSpeeches: number;
+  nextExpectedSide: 'aff' | 'neg';
+  nextExpectedAffNumber: number;
+  nextExpectedNegNumber: number;
+} {
+  // Filter events belonging to this bill and having a speech event type
+  const billSpeechEvents = roundEvents
+    .filter((e) => {
+      const isSpeech = e.event_type.startsWith('speech_');
+      if (!isSpeech) return false;
+      if (activeBillId && e.bill_id) {
+        return e.bill_id === activeBillId;
+      }
+      return true;
+    })
+    .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+  let affCount = 0;
+  let negCount = 0;
+
+  const speeches: SpeechAnalysis[] = billSpeechEvents.map((e, index) => {
+    const overallNumber = index + 1;
+    let side: 'aff' | 'neg' = 'aff';
+    let sideNumber = 1;
+    let label = '';
+
+    if (e.event_type === 'speech_neg') {
+      negCount += 1;
+      side = 'neg';
+      sideNumber = negCount;
+      label = `${getOrdinal(negCount)} Negative`;
+    } else if (e.event_type === 'speech_author') {
+      affCount += 1;
+      side = 'aff';
+      sideNumber = affCount;
+      label = 'Authorship (Affirmative)';
+    } else if (e.event_type === 'speech_sponsor') {
+      affCount += 1;
+      side = 'aff';
+      sideNumber = affCount;
+      label = affCount === 1 ? '1st Sponsorship (Affirmative)' : `${getOrdinal(affCount)} Sponsorship (Affirmative)`;
+    } else {
+      // speech_aff
+      affCount += 1;
+      side = 'aff';
+      sideNumber = affCount;
+      label = `${getOrdinal(affCount)} Affirmative`;
+    }
+
+    return {
+      eventId: e.id,
+      representativeId: e.representative_id,
+      eventType: e.event_type,
+      overallNumber,
+      side,
+      sideNumber,
+      label,
+      fullLabel: `Speech #${overallNumber}: ${label}`,
+    };
+  });
+
+  const lastSpeech = speeches[speeches.length - 1];
+  const nextExpectedSide: 'aff' | 'neg' = lastSpeech ? (lastSpeech.side === 'aff' ? 'neg' : 'aff') : 'aff';
+
+  return {
+    speeches,
+    affCount,
+    negCount,
+    totalSpeeches: speeches.length,
+    nextExpectedSide,
+    nextExpectedAffNumber: affCount + 1,
+    nextExpectedNegNumber: negCount + 1,
+  };
+}

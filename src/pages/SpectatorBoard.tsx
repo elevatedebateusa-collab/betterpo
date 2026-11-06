@@ -5,8 +5,7 @@ import {
   Gavel, 
   Share2, 
   Lock, 
-  AlertCircle, 
-  Coffee,
+  AlertCircle,
   Users,
   FileEdit,
   Search,
@@ -31,7 +30,7 @@ import type {
   TimerBroadcastPayload,
   TimerMode
 } from '../lib/supabase';
-import { sortRepresentatives } from '../lib/precedence';
+import { sortRepresentatives, analyzeBillSpeeches } from '../lib/precedence';
 import { BetterPOLoader } from '../components/BetterPOLoader';
 
 export const SpectatorBoard: React.FC = () => {
@@ -268,44 +267,26 @@ export const SpectatorBoard: React.FC = () => {
     return { total, present, simpleMajority, twoThirdsMajority, isQuorumMet };
   }, [representatives]);
 
-  // Cycle Sequence & Speech Stage Analysis
-  const cycleInfo = useMemo(() => {
-    if (!room) return null;
-    const isBroken = activeBill?.cycle_broken ?? false;
-    const count = activeBill?.speech_count ?? 0;
-    const lastSide = room.last_speech_side;
+  // Real-time Speech Analysis: Computes exact speech numbers (1st Neg, 2nd Neg, etc.) based on actual speeches given
+  const speechAnalysis = useMemo(() => {
+    return analyzeBillSpeeches(roundEvents, activeBill?.id);
+  }, [roundEvents, activeBill?.id]);
 
-    let stageText = '';
-    let badgeClass = '';
-    let isNextNeg = false;
-    let isNextAff = false;
-
-    if (isBroken) {
-      stageText = 'Cycle Broken: Chamber may recognize speeches on either side';
-      badgeClass = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
-    } else if (count === 0) {
-      stageText = 'Speech #1: Authorship or Sponsorship (Affirmative)';
-      badgeClass = 'bg-purple-500/20 text-purple-300 border-purple-500/40';
-      isNextAff = true;
-    } else if (lastSide === 'author' || lastSide === 'sponsor' || lastSide === 'aff') {
-      stageText = `Speech #${count + 1}: Negative Constructive`;
-      badgeClass = 'bg-rose-500/20 text-rose-300 border-rose-500/40';
-      isNextNeg = true;
-    } else {
-      stageText = `Speech #${count + 1}: Affirmative Constructive`;
-      badgeClass = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
-      isNextAff = true;
+  // Current Speech Designation for the active speaker on the floor
+  const currentSpeechText = useMemo(() => {
+    if (!displaySpeaker) return null;
+    const speakerId = 'id' in displaySpeaker ? (displaySpeaker as { id?: string }).id : null;
+    if (speechAnalysis.speeches.length > 0) {
+      if (speakerId) {
+        const speakerSpeech = [...speechAnalysis.speeches].reverse().find(
+          (s) => s.representativeId === speakerId
+        );
+        if (speakerSpeech) return speakerSpeech.fullLabel;
+      }
+      return speechAnalysis.speeches[speechAnalysis.speeches.length - 1].fullLabel;
     }
-
-    return {
-      isBroken,
-      count,
-      stageText,
-      badgeClass,
-      isNextNeg,
-      isNextAff,
-    };
-  }, [room, activeBill]);
+    return 'Speech #1: Authorship (Affirmative)';
+  }, [displaySpeaker, speechAnalysis]);
 
   // Pure NSDA Sorted Recency Ladder
   const sortedLadder = useMemo(() => {
@@ -334,7 +315,9 @@ export const SpectatorBoard: React.FC = () => {
     return sortedLadder.findIndex((r) => r.id === claimedSenator.id);
   }, [claimedSenator, sortedLadder]);
 
-  // Format Timer Countdown
+  // Format Timer Countdown (Competitor view is always a countdown timer)
+  const displayTimerSeconds = timerSecondsLeft;
+
   const formatTimerClock = (totalSecs: number) => {
     const isNegative = totalSecs < 0;
     const absSecs = Math.abs(totalSecs);
@@ -382,21 +365,6 @@ export const SpectatorBoard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white text-[#0A1128] flex flex-col pb-24 selection:bg-emerald-100 selection:text-emerald-900">
-      {/* Chamber Status Alerts: Recess / Adjourned */}
-      {room.status === 'recess' && (
-        <div className="bg-amber-500 text-white px-4 py-2 text-center text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 sticky top-0 z-40 shadow-sm">
-          <Coffee className="w-4 h-4" />
-          <span>Chamber is currently in Recess / Caucus. Please remain on standby.</span>
-        </div>
-      )}
-
-      {room.status === 'adjourned' && (
-        <div className="bg-rose-600 text-white px-4 py-2 text-center text-xs font-mono font-bold uppercase tracking-wider flex items-center justify-center gap-2 sticky top-0 z-40 shadow-sm">
-          <Gavel className="w-4 h-4 text-white" />
-          <span>This chamber session has adjourned sine die.</span>
-        </div>
-      )}
-
       {/* Top Navigation Bar: Super Minimalist Swiss Editorial Bar */}
       <header className="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-30 px-4 h-14 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 truncate">
@@ -412,7 +380,7 @@ export const SpectatorBoard: React.FC = () => {
               <h1 className="font-serif-editorial font-bold text-slate-900 text-base sm:text-lg truncate max-w-[200px] sm:max-w-md">
                 {room.name}
               </h1>
-              <span className="px-2 py-0.5 rounded-full text-xs font-mono font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase shrink-0">
+              <span className="text-xs font-mono font-bold text-slate-500 uppercase shrink-0">
                 {room.code}
               </span>
             </div>
@@ -517,9 +485,9 @@ export const SpectatorBoard: React.FC = () => {
                       'Senator on the Floor'
                     )}
                   </h4>
-                  {cycleInfo && (
+                  {currentSpeechText && (
                     <p className="font-mono text-xs sm:text-sm font-semibold text-emerald-800">
-                      {cycleInfo.stageText}
+                      {currentSpeechText}
                     </p>
                   )}
                 </div>
@@ -558,15 +526,18 @@ export const SpectatorBoard: React.FC = () => {
             </div>
 
             {/* Right Box (col-span-5): Live Synchronized Timer HUD */}
-            <div className={`md:col-span-5 p-4 sm:p-5 rounded-xl border flex items-center justify-center text-center transition-all min-h-[96px] shadow-xs ${
+            <div className={`md:col-span-5 p-4 sm:p-5 rounded-xl border flex flex-col items-center justify-center text-center transition-all min-h-[96px] shadow-xs ${
               isExpired
                 ? 'bg-rose-50 border-rose-300 text-rose-900 animate-pulse'
                 : isGracePeriod
                 ? 'bg-amber-50 border-amber-300 text-amber-900'
                 : 'bg-slate-50 border-slate-200 text-slate-900'
             }`}>
+              <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-slate-400 mb-1">
+                {timerMode === 'speech' ? 'Speech Timer' : `${timerMode.toUpperCase()} Timer`}
+              </div>
               <div className="font-mono font-black text-5xl sm:text-6xl tracking-tight leading-none">
-                {formatTimerClock(timerSecondsLeft)}
+                {formatTimerClock(displayTimerSeconds)}
               </div>
             </div>
           </div>
@@ -819,7 +790,7 @@ export const SpectatorBoard: React.FC = () => {
           >
             <History className="w-4 h-4 text-emerald-600" />
             <span>Round History & Audit Ledger</span>
-            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] border border-slate-200">
+            <span className="text-[10px] font-mono text-slate-500">
               {roundEvents.length} events
             </span>
             {isLedgerOpen ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronUp className="w-4 h-4 text-slate-400" />}
@@ -882,6 +853,8 @@ export const SpectatorBoard: React.FC = () => {
                     const isNeg = e.event_type === 'speech_neg';
                     const isAuthor = e.event_type === 'speech_author' || e.event_type === 'speech_sponsor';
                     const isQuestion = e.event_type === 'question';
+                    const speechInfo = speechAnalysis.speeches.find((s) => s.eventId === e.id);
+                    const tagLabel = speechInfo ? speechInfo.label : isQuestion ? 'Question' : e.event_type.replace('speech_', '').replace('_', ' ');
 
                     return (
                       <div
@@ -906,7 +879,7 @@ export const SpectatorBoard: React.FC = () => {
                                 : 'bg-amber-100 text-amber-800'
                             }`}
                           >
-                            {e.event_type.replace('speech_', '').replace('_', ' ')}
+                            {tagLabel}
                           </span>
 
                           <span className="font-bold text-slate-900">

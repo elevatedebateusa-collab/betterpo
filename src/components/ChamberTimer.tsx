@@ -38,6 +38,7 @@ interface ChamberTimerProps {
   roomCode: string;
   roomId?: string;
   isPO?: boolean;
+  floorMode?: 'speech' | 'question';
   speakerId?: string | null;
   speakerName?: string | null;
   questionerName?: string | null;
@@ -51,6 +52,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   roomCode,
   roomId,
   isPO = false,
+  floorMode,
   speakerId = null,
   speakerName = null,
   questionerName = null,
@@ -64,7 +66,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [mode, setMode] = useState<'speech' | 'dq' | 'question' | 'recess' | 'custom'>('speech');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
-  const [gavelCueFlash, setGavelCueFlash] = useState<number | null>(null);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -111,9 +112,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
       if (ctx.state === 'suspended') {
         ctx.resume();
       }
-
-      setGavelCueFlash(taps);
-      setTimeout(() => setGavelCueFlash(null), taps * 240 + 200);
 
       for (let i = 0; i < taps; i++) {
         const offset = i * 0.22;
@@ -322,14 +320,39 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     else if (value === 'recess') applyPreset(300, 'recess');
   };
 
+  const prevFloorModeRef = useRef<'speech' | 'question' | undefined>(undefined);
+
+  // Automatically switch timer to 30s when PO switches to question calls, or 3:10 for speech calls,
+  // but only if the timer is not currently running (do not interrupt an active timer).
+  useEffect(() => {
+    if (!isPO || !floorMode) return;
+    if (prevFloorModeRef.current !== undefined && prevFloorModeRef.current !== floorMode) {
+      if (!isRunning) {
+        if (floorMode === 'question') {
+          applyPreset(30, 'question');
+        } else if (floorMode === 'speech') {
+          applyPreset(190, 'speech');
+        }
+      }
+    }
+    prevFloorModeRef.current = floorMode;
+  }, [floorMode, isPO, isRunning]);
+
   const adjustSeconds = (delta: number) => {
-    const next = secondsLeft + delta;
+    // In speech stopwatch mode for PO, +15s advances stopwatch elapsed time by 15s (subtracted from secondsLeft)
+    const effectiveDelta = (isPO && mode === 'speech') ? -delta : delta;
+    const next = secondsLeft + effectiveDelta;
     setSecondsLeft(next);
     broadcast(next, isRunning, duration, mode);
     if (roomId) {
       chamberService.updateRoomTimer(roomId, isRunning ? 'running' : 'paused', next, duration, mode);
     }
   };
+
+  // For PO, speeches count up like a stopwatch; all other modes (and competitor views) count down like a timer
+  const displaySeconds = (isPO && mode === 'speech')
+    ? Math.max(0, duration - secondsLeft)
+    : secondsLeft;
 
   const formatTime = (secs: number) => {
     const isNegative = secs < 0;
@@ -361,9 +384,9 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
       {/* Top Banner: Senator [Full Name] or Floor Clear */}
       <div className="flex items-center justify-between pb-3 mb-3 border-b border-slate-100">
         <div className="flex items-center gap-2">
-          <span className="text-base font-serif-editorial font-bold text-slate-900 tracking-tight">
+          <span className="text-base font-po-ui font-semibold text-slate-800 tracking-tight">
             {mode === 'recess'
-              ? 'Chamber in Recess'
+              ? 'Recess'
               : mode === 'question'
               ? (autoStartConfig?.questionerName || questionerName
                   ? `Question: ${extractLastName(autoStartConfig?.questionerName || questionerName)}`
@@ -385,29 +408,12 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
           )}
         </div>
 
-        {/* Gavel Cues Visual Indicators & Sound Toggle */}
+        {/* Sound Toggle */}
         <div className="flex items-center gap-2">
-          {gavelCueFlash !== null && (
-            <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-xs font-mono font-bold animate-bounce shadow-sm">
-              <span>{gavelCueFlash} Tap{gavelCueFlash > 1 ? 's' : ''}</span>
-            </span>
-          )}
-
-          {isGrace && (
-            <span className="px-2 py-0.5 rounded bg-amber-500 text-white text-xs font-mono font-bold animate-pulse shadow-sm">
-              <span>Grace ({duration === 190 ? secondsLeft : 10 + secondsLeft}s)</span>
-            </span>
-          )}
-
-          {isExpired && (
-            <span className="px-2 py-0.5 rounded bg-rose-600 text-white text-xs font-mono font-bold shadow-sm">
-              <span>Gavel Down</span>
-            </span>
-          )}
 
           <button
             onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-1.5 rounded-lg border text-xs transition-colors ${
+            className={`p-2 rounded-xl border border-slate-200 text-xs transition-colors ${
               soundEnabled
                 ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
                 : 'bg-white border-slate-200 text-slate-400'
@@ -422,19 +428,10 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
       {/* Main Clock: Crisp Minimalist Stopwatch */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="text-center sm:text-left">
-          <div className={`font-mono text-4xl sm:text-5xl font-black tracking-tight leading-none py-1 ${
+          <div className={`font-po-ui text-5xl sm:text-6xl font-extrabold tracking-tight leading-none py-1 ${
             mode === 'recess' ? 'text-amber-600' : isExpired ? 'text-rose-600' : isGrace ? 'text-amber-600' : 'text-slate-900'
           }`}>
-            {formatTime(secondsLeft)}
-          </div>
-          <div className="text-[11px] text-slate-500 mt-1 flex items-center gap-2 justify-center sm:justify-start font-mono">
-            <span className="font-bold text-slate-700">
-              {mode.toUpperCase()} ({Math.floor(duration / 60)}:{duration % 60 < 10 ? '0' : ''}{duration % 60})
-            </span>
-            <span>•</span>
-            <span className={isRunning ? 'text-emerald-700 font-semibold' : 'text-slate-400'}>
-              {isRunning ? 'Running' : 'Standby'}
-            </span>
+            {formatTime(displaySeconds)}
           </div>
         </div>
 
@@ -444,7 +441,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
             <div className="flex items-center gap-1.5">
               <button
                 onClick={togglePlay}
-                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-3.5 py-1.5 rounded-lg font-mono font-bold text-xs transition-all shadow-sm ${
+                className={`flex-1 sm:flex-initial inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl font-mono font-semibold text-xs transition-all shadow-xs ${
                   isRunning
                     ? 'bg-amber-500 hover:bg-amber-600 text-white'
                     : 'bg-emerald-600 hover:bg-emerald-700 text-white'
@@ -463,13 +460,13 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
 
               <button
                 onClick={() => resetClock()}
-                className="p-1.5 rounded-lg bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 transition-all"
+                className="p-2 rounded-xl bg-slate-100 border border-slate-200 hover:bg-slate-200 text-slate-700 transition-all"
                 title="Reset Clock to Duration"
               >
                 <RotateCcw className="w-3.5 h-3.5" />
               </button>
 
-              <div className="flex items-center border border-slate-200 rounded-lg bg-slate-50 overflow-hidden">
+              <div className="flex items-center border border-slate-200 rounded-xl bg-slate-50 overflow-hidden">
                 <button
                   onClick={() => adjustSeconds(-15)}
                   className="px-2 py-1 text-[11px] font-mono font-bold text-slate-600 hover:text-slate-900 hover:bg-slate-100 border-r border-slate-200"
@@ -491,12 +488,16 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
             <SelectionGroup
               aria-label="Timer preset"
               value={mode === 'recess' ? 'recess' : mode === 'speech' && duration === 190 ? 'speech' : mode === 'question' && duration === 30 ? 'question' : ''}
-              onValueChange={handlePresetSelection} onReselect={handlePresetSelection} size="xs"
-              className="grid grid-cols-2 sm:grid-cols-4 gap-1" itemClassName="min-w-0 px-1.5"
+              onValueChange={handlePresetSelection}
+              onReselect={handlePresetSelection}
+              size="xs"
+              shape="default"
+              className="grid grid-cols-3 gap-1"
+              itemClassName="min-w-0 px-2 justify-center text-center font-mono font-medium"
               options={[
-                { value: 'speech', label: '3:10 Spk' },
-                { value: 'question', label: '0:30 CX', title: 'Questioning' },
-                { value: 'recess', label: '5m Recess' },
+                { value: 'speech', label: '3:10', title: 'Speech (3:10)' },
+                { value: 'question', label: '0:30', title: 'Questioning (0:30)' },
+                { value: 'recess', label: '5:00', title: 'Recess (5:00)' },
               ]}
             />
           </div>

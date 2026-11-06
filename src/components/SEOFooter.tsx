@@ -34,7 +34,7 @@ export const SEOFooter: React.FC = () => {
           aria-expanded={isExpanded}
           aria-controls="seo-guide-drawer"
         >
-          <BookOpen className="w-3.5 h-3.5 text-[#006948]" />
+          <BookOpen className="w-3.5 h-3.5 text-[#10b981]" />
           <span>{isExpanded ? 'Hide PO Guide & FAQs' : 'PO Guide, Rules & FAQ'}</span>
           {isExpanded ? (
             <ChevronDown className="w-3.5 h-3.5 text-slate-500" />

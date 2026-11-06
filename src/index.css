@@ -20,7 +20,36 @@
   }
 }
 
+/* Explicit button styling matching the exact BetterPO logo 'po' accent (#10b981) */
+.eclipse-btn-primary {
+  background-color: #10b981;
+  color: #ffffff;
+  border-color: transparent;
+}
+.eclipse-btn-primary:hover {
+  background-color: #059669;
+}
+.eclipse-btn-primary:active {
+  background-color: #047857;
+}
+
 /* Tri-font typographic helpers */
+.font-po-ui {
+  font-family: 'Plus Jakarta Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', Roboto, sans-serif;
+  letter-spacing: -0.012em;
+}
+
+.panel-smooth {
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.7);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+}
+
+.font-field-header {
+  font-family: Arial, 'Helvetica Neue', Helvetica, -apple-system, BlinkMacSystemFont, sans-serif;
+  letter-spacing: -0.015em;
+}
+
 .font-serif-editorial {
   font-family: 'Newsreader', 'Playfair Display', Georgia, serif;
 }

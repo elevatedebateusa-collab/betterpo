@@ -136,7 +136,7 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
                 }
               }}
               required
-              placeholder="e.g. Previous Question, Recess, Lay on the Table..."
+              placeholder=""
               className="w-full bg-slate-50/70 border border-slate-200 rounded-xl px-3.5 py-2.5 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-[#006948] focus:ring-2 focus:ring-[#006948]/20 transition-all font-sans text-sm"
               autoFocus
             />

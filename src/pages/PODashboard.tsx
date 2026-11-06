@@ -14,7 +14,7 @@ import {
   subscribeToLocalSync 
 } from '../lib/supabase';
 import type { Room, Representative, Bill, RoundEvent, EventType, ChamberSettings } from '../lib/supabase';
-import { resolveStandingWinner, formatPriorityReason, sortRepresentatives } from '../lib/precedence';
+import { resolveStandingWinner, formatPriorityReason, sortRepresentatives, getOrdinal, analyzeBillSpeeches } from '../lib/precedence';
 import { ChamberTimer } from '../components/ChamberTimer';
 import { FloorGrid, extractLastName } from '../components/FloorGrid';
 import { RecencyLadder } from '../components/RecencyLadder';
@@ -233,47 +233,33 @@ export const PODashboard: React.FC = () => {
     return representatives.find((r) => r.id === room.current_speaker_id) || null;
   }, [room?.current_speaker_id, representatives]);
 
-  // Track speech counts on the active bill & determine next speech (e.g. 1 Aff, 1 Neg, 2 Aff, 2 Neg)
+  // Dynamically analyze all speeches on the active bill to determine exact Aff/Neg numbers
+  const speechAnalysis = useMemo(() => {
+    return analyzeBillSpeeches(roundEvents, activeBill?.id);
+  }, [roundEvents, activeBill?.id]);
+
+  // Determine next expected speech based on true counts
   const { nextSpeechDisplay, nextSpeechSide } = useMemo(() => {
-    const billEvents = roundEvents.filter((e) => {
-      if (activeBill?.id && e.bill_id) {
-        return e.bill_id === activeBill.id;
-      }
-      return true;
-    });
-
-    const speechEvents = billEvents.filter((e) => e.event_type.startsWith('speech_'));
-
-    const affCount = speechEvents.filter(
-      (e) =>
-        e.event_type === 'speech_aff' ||
-        e.event_type === 'speech_author' ||
-        e.event_type === 'speech_sponsor'
-    ).length;
-
-    const negCount = speechEvents.filter((e) => e.event_type === 'speech_neg').length;
-
-    const lastSide = room?.last_speech_side;
-
-    let side: 'aff' | 'neg' = 'aff';
-    let count = 1;
-
-    if (!lastSide || speechEvents.length === 0) {
-      side = 'aff';
-      count = 1;
-    } else if (lastSide === 'aff' || lastSide === 'author' || lastSide === 'sponsor') {
-      side = 'neg';
-      count = negCount + 1;
-    } else {
-      side = 'aff';
-      count = affCount + 1;
+    if (speechAnalysis.totalSpeeches === 0) {
+      return {
+        nextSpeechDisplay: '1st Aff (Authorship)',
+        nextSpeechSide: 'aff' as const,
+        affCount: 0,
+        negCount: 0,
+      };
     }
 
-    const sideLabel = side === 'aff' ? 'Aff' : 'Neg';
-    const display = `${count} ${sideLabel}`;
+    const side = speechAnalysis.nextExpectedSide;
+    const num = side === 'aff' ? speechAnalysis.nextExpectedAffNumber : speechAnalysis.nextExpectedNegNumber;
+    const display = `${getOrdinal(num)} ${side === 'aff' ? 'Aff' : 'Neg'}`;
 
-    return { nextSpeechDisplay: display, nextSpeechSide: side, affCount, negCount };
-  }, [roundEvents, activeBill?.id, room?.last_speech_side]);
+    return {
+      nextSpeechDisplay: display,
+      nextSpeechSide: side,
+      affCount: speechAnalysis.affCount,
+      negCount: speechAnalysis.negCount,
+    };
+  }, [speechAnalysis]);
 
   // Toggle standing state for a debater
   const handleToggleStanding = (id: string) => {
@@ -343,7 +329,9 @@ export const PODashboard: React.FC = () => {
     const { room: updatedRoom, bill: updatedBill } = await chamberService.setActiveBill(room, bill);
     setRoom(updatedRoom);
     setBills((prev) => prev.map((b) => (b.id === bill.id ? updatedBill : b)));
-    showToast(`Active Bill set to ${bill.bill_number}`);
+    setStandingIds(new Set());
+    setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
+    showToast(`Active Bill set to ${bill.bill_number} (Floor Cleared)`);
   };
 
   const handleReorderBills = async (reorderedBills: Bill[]) => {
@@ -376,6 +364,8 @@ export const PODashboard: React.FC = () => {
       if (updatedRoom) setRoom(updatedRoom);
       setBills(freshBills);
       setRoundEvents(events);
+      setStandingIds(new Set());
+      setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
       setShowDocketNominationModal(false);
       showToast(`Round started with docket: ${docketSummary}`);
     } catch (err: unknown) {
@@ -401,14 +391,24 @@ export const PODashboard: React.FC = () => {
           const { room: updatedRoom, bill: activatedBill } = await chamberService.setActiveBill(room, nextBill);
           setRoom(updatedRoom);
           setBills((prev) => prev.map((b) => (b.id === nextBill.id ? activatedBill : b)));
+          setStandingIds(new Set());
+          setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
           showToast(`Advanced floor to next bill on docket: ${nextBill.bill_number}`);
         } else {
           const updatedRoom = await chamberService.updateRoom(room.id, {
             active_bill_id: null,
             current_legislation: 'Docket Complete - All Bills Concluded',
             last_speech_side: null,
+            current_speaker_id: null,
+            active_amendment: null,
+            timer_status: 'reset',
+            timer_remaining_seconds: 190,
+            timer_duration: 190,
+            timer_mode: 'speech',
           });
           if (updatedRoom) setRoom(updatedRoom);
+          setStandingIds(new Set());
+          setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
           showToast('All bills on docket completed!');
         }
       }
@@ -452,7 +452,15 @@ export const PODashboard: React.FC = () => {
       setStandingIds(new Set());
 
       if (isSpeech) {
-        showToast(`Recognized ${rep.name} for ${eventType.replace('speech_', '').toUpperCase()}`);
+        const nextNum = eventType === 'speech_neg'
+          ? speechAnalysis.nextExpectedNegNumber
+          : speechAnalysis.nextExpectedAffNumber;
+        const sideLabel = eventType === 'speech_neg'
+          ? 'Negative'
+          : eventType === 'speech_author'
+          ? 'Authorship'
+          : 'Affirmative';
+        showToast(`Recognized ${rep.name} for ${getOrdinal(nextNum)} ${sideLabel}`);
       } else if (eventType === 'question') {
         // Every question starts a fresh 30-second CX timer automatically.
         const cxDuration = 30;
@@ -604,14 +612,24 @@ export const PODashboard: React.FC = () => {
           setBills((prev) =>
             prev.map((b) => (b.id === nextBill.id ? activatedBill : b))
           );
+          setStandingIds(new Set());
+          setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
           showToast(`Vote recorded (${passed ? 'PASSED' : 'VOTED DOWN'}). Concluded ${currentBill.bill_number} and advanced to ${nextBill.bill_number}!`);
         } else {
           const updatedRoom = await chamberService.updateRoom(room.id, {
             active_bill_id: null,
             current_legislation: 'Docket Complete - All Bills Concluded',
             last_speech_side: null,
+            current_speaker_id: null,
+            active_amendment: null,
+            timer_status: 'reset',
+            timer_remaining_seconds: 190,
+            timer_duration: 190,
+            timer_mode: 'speech',
           });
           if (updatedRoom) setRoom(updatedRoom);
+          setStandingIds(new Set());
+          setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
           showToast(`Vote recorded (${passed ? 'PASSED' : 'VOTED DOWN'}). All bills on docket completed!`);
         }
       } else {
@@ -625,6 +643,8 @@ export const PODashboard: React.FC = () => {
           setBills((prev) =>
             prev.map((b) => (b.id === nextBill.id ? activatedBill : b))
           );
+          setStandingIds(new Set());
+          setTimerConfig({ mode: 'speech', duration: 190, questionerName: null });
           showToast(`Advanced floor to ${nextBill.bill_number}!`);
         }
       }
@@ -658,7 +678,7 @@ export const PODashboard: React.FC = () => {
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white border border-[#CBD5E1] rounded-2xl p-6 text-center shadow-sm">
           <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-3" />
-          <h2 className="text-xl font-serif-editorial font-bold text-[#0A1128] mb-2">Chamber Not Found</h2>
+          <h2 className="text-xl font-po-ui font-bold text-[#0A1128] mb-2">Chamber Not Found</h2>
           <p className="text-xs font-mono text-slate-500 mb-6">{error || 'This chamber does not exist.'}</p>
           <button
             onClick={() => navigate('/')}
@@ -680,7 +700,7 @@ export const PODashboard: React.FC = () => {
             <div className="w-12 h-12 rounded-xl bg-emerald-50 text-[#006948] border border-emerald-200 mx-auto flex items-center justify-center mb-3">
               <Lock className="w-5 h-5" />
             </div>
-            <h2 className="text-2xl font-serif-editorial font-bold text-[#0A1128] mb-1">Presiding Officer Passcode</h2>
+            <h2 className="text-2xl font-po-ui font-bold text-[#0A1128] mb-1">Presiding Officer Passcode</h2>
             <p className="text-xs font-mono text-slate-500">
               Enter passcode for <span className="font-semibold text-slate-800">{room.name}</span> ({room.code})
             </p>
@@ -796,7 +816,7 @@ export const PODashboard: React.FC = () => {
       {/* ========================================================
           TOP NAVIGATION BAR
           ======================================================== */}
-      <header className="border-b border-[#CBD5E1]/80 bg-white/95 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-6 h-14 flex items-center justify-between gap-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
+      <header className="border-b border-slate-200/60 bg-white/95 backdrop-blur-md sticky top-0 z-30 px-4 sm:px-6 h-14 flex items-center justify-between gap-4 shadow-[0_1px_3px_rgba(0,0,0,0.02)]">
         {/* Left: Brand & Chamber Code */}
         <div className="flex items-center gap-3">
           <div 
@@ -804,14 +824,14 @@ export const PODashboard: React.FC = () => {
             className="flex items-center cursor-pointer group"
           >
             <span className="font-mono font-bold text-sm tracking-wider uppercase text-[#0A1128] group-hover:opacity-80 transition-opacity">
-              better<span className="text-[#006948]">po</span>
+              better<span className="text-emerald-500" style={{ color: '#10b981' }}>po</span>
             </span>
           </div>
 
           <button
             type="button"
             onClick={handleCopyCode}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-50 hover:bg-slate-100 border border-[#CBD5E1] text-xs font-mono transition-colors cursor-pointer"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-xs font-mono transition-colors cursor-pointer"
             title="Click to copy room link"
           >
             <span className="text-slate-400 font-medium">Code:</span>
@@ -824,7 +844,7 @@ export const PODashboard: React.FC = () => {
         <div className="flex items-center gap-1.5 sm:gap-2 font-mono text-xs">
           <button
             onClick={() => setShowDocketModal(true)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-[#CBD5E1] transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
             title="Manage Chamber Docket"
           >
             <span>Docket ({bills.length})</span>
@@ -832,7 +852,7 @@ export const PODashboard: React.FC = () => {
 
           <button
             onClick={() => setShowRosterModal(true)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-[#CBD5E1] transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
             title="Add Debaters to Roster"
           >
             <span>Add Debaters</span>
@@ -846,7 +866,7 @@ export const PODashboard: React.FC = () => {
               setIsPQFlow(false);
               setShowVoteModal(true);
             }}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-[#CBD5E1] transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
             title="Vote on Floor Motion"
           >
             <span>Motion</span>
@@ -854,10 +874,10 @@ export const PODashboard: React.FC = () => {
 
           <button
             onClick={() => setShowAmendmentModal(true)}
-            className={`px-3 py-1.5 rounded-lg border transition-colors ${
+            className={`px-3.5 py-1.5 rounded-xl border transition-colors ${
               room.active_amendment
                 ? 'bg-amber-50 text-amber-900 border-amber-400 font-bold'
-                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-[#CBD5E1]'
+                : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
             }`}
             title="Floor Amendment Workflow"
           >
@@ -866,7 +886,7 @@ export const PODashboard: React.FC = () => {
 
           <button
             onClick={() => setShowSettingsModal(true)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-[#CBD5E1] transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
             title="Settings & Rules"
           >
             <span>Settings</span>
@@ -874,7 +894,7 @@ export const PODashboard: React.FC = () => {
 
           <button
             onClick={() => chamberService.exportSessionCSV(room, representatives, roundEvents, bills)}
-            className="px-3 py-1.5 rounded-lg bg-slate-50 hover:bg-slate-100 text-slate-700 border border-[#CBD5E1] transition-colors"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
             title="Export CSV"
           >
             <span>Export</span>
@@ -885,9 +905,9 @@ export const PODashboard: React.FC = () => {
       {/* ========================================================
           ACTIVE BILL HEADLINE & NEXT SPEECH TRACKER
           ======================================================== */}
-      <section className="bg-white border-b border-[#CBD5E1]/80 px-4 sm:px-6 py-3 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
+      <section className="bg-white border-b border-slate-200/60 px-4 sm:px-6 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
-          <h1 className="text-lg sm:text-xl font-bold font-serif-editorial text-slate-900 tracking-tight">
+          <h1 className="text-lg sm:text-xl font-bold font-po-ui text-slate-900 tracking-tight">
             {activeBill ? `${activeBill.bill_number}: ${activeBill.title}` : room.current_legislation || 'General Orders / Open Floor'}
           </h1>
 
@@ -895,10 +915,8 @@ export const PODashboard: React.FC = () => {
             <span className="text-xs font-mono font-medium text-slate-500 uppercase tracking-wider">
               Next Speech:
             </span>
-            <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-              nextSpeechSide === 'aff'
-                ? 'bg-emerald-50 text-[#006948] border border-emerald-200'
-                : 'bg-rose-50 text-rose-700 border border-rose-200'
+            <span className={`text-xs font-mono font-bold ${
+              nextSpeechSide === 'aff' ? 'text-[#006948]' : 'text-rose-700'
             }`}>
               {nextSpeechDisplay}
             </span>
@@ -906,16 +924,15 @@ export const PODashboard: React.FC = () => {
         </div>
       </section>
 
-      {/* Indicator when no docket is set yet — gone once docket is set */}
+      {/* Docket nomination banner at start of round when no docket is set */}
       {bills.length === 0 && (
         <section className="bg-emerald-50/80 border-b border-emerald-200 px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-emerald-950">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
             <span>Chamber docket is currently open for nominations.</span>
           </div>
           <button
             onClick={() => setShowDocketNominationModal(true)}
-            className="px-3.5 py-1.5 rounded-lg bg-[#006948] hover:bg-[#005137] text-white font-bold transition-all shadow-xs shrink-0 active:scale-[0.98]"
+            className="px-3.5 py-1.5 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold transition-all shadow-xs shrink-0 active:scale-[0.98]"
           >
             Open the floor for docket nomination
           </button>
@@ -960,11 +977,11 @@ export const PODashboard: React.FC = () => {
         <section className="lg:col-span-8 space-y-5 flex flex-col">
           
           {/* Bento Card 1: Chamber Seating & Floor Grid */}
-          <div className="bg-white border border-[#CBD5E1]/80 rounded-2xl p-4 sm:p-5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] space-y-4">
+          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-4">
             {/* Floor Grid Top Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div>
-                <h2 className="text-base font-serif-editorial font-bold text-slate-900 tracking-tight">
+                <h2 className="text-base font-po-ui font-bold text-slate-900 tracking-tight">
                   {room.name}
                 </h2>
                 <p className="text-[11px] font-mono text-slate-500">
@@ -1000,10 +1017,10 @@ export const PODashboard: React.FC = () => {
           </div>
 
           {/* Bento Card 2: Chronological Chamber Audit Log */}
-          <div className="bg-white border border-[#CBD5E1]/80 rounded-2xl p-4 sm:p-5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] space-y-3">
+          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <h3 className="text-sm font-serif-editorial font-bold text-slate-900">
+                <h3 className="text-sm font-po-ui font-bold text-slate-900">
                   Chamber Floor Audit Log
                 </h3>
                 <span className="text-xs font-mono text-slate-400">
@@ -1015,7 +1032,7 @@ export const PODashboard: React.FC = () => {
                 <button
                   onClick={handleUndo}
                   disabled={roundEvents.length === 0}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 disabled:opacity-30 text-rose-700 border border-rose-200 font-mono text-xs font-bold transition-colors"
+                  className="inline-flex items-center gap-1 px-3 py-1 rounded-xl bg-rose-50 hover:bg-rose-100 disabled:opacity-30 text-rose-700 border border-rose-200 font-mono text-xs font-semibold transition-colors"
                   title="Undo most recent call"
                 >
                   <RotateCcw className="w-3 h-3" />
@@ -1042,7 +1059,7 @@ export const PODashboard: React.FC = () => {
                 roundEvents.slice(0, showAuditLogFull ? roundEvents.length : 6).map((e) => (
                   <div
                     key={e.id}
-                    className="p-2 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between hover:bg-slate-100 transition-colors"
+                    className="p-2.5 rounded-xl bg-slate-50/70 border border-slate-200/60 flex items-center justify-between hover:bg-slate-100/70 transition-colors"
                   >
                     <div className="flex items-center gap-2.5">
                       <span className="w-6 h-6 rounded-md bg-white border border-slate-200 text-slate-700 flex items-center justify-center font-bold text-[11px] shadow-xs">
@@ -1052,14 +1069,19 @@ export const PODashboard: React.FC = () => {
                         {e.representative_name}
                       </span>
                       <span className="text-slate-300">•</span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
+                      <span className={`text-[10px] font-bold uppercase tracking-wider ${
                         e.event_type === 'speech_aff' || e.event_type === 'speech_author'
-                          ? 'bg-emerald-100 text-[#006948]'
+                          ? 'text-[#006948]'
                           : e.event_type === 'speech_neg'
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-slate-200 text-slate-800'
+                          ? 'text-rose-700'
+                          : 'text-slate-700'
                       }`}>
-                        {e.event_type.replace('speech_', '')}
+                        {(() => {
+                          const speechInfo = speechAnalysis.speeches.find((s) => s.eventId === e.id);
+                          if (speechInfo) return speechInfo.label;
+                          if (e.event_type === 'question') return 'Question';
+                          return e.event_type.replace('speech_', '');
+                        })()}
                       </span>
                     </div>
 
@@ -1083,12 +1105,13 @@ export const PODashboard: React.FC = () => {
         <section className="lg:col-span-4 space-y-5 flex flex-col">
           
           {/* Bento Card 3: Master Speech Timer Card */}
-          <div className="bg-white border border-[#CBD5E1]/80 rounded-2xl p-4 sm:p-5 shadow-[0_1px_4px_rgba(0,0,0,0.03)]">
+          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
             {/* Embedded Synchronized Timer */}
             <ChamberTimer
               roomCode={room.code}
               roomId={room.id}
               isPO={true}
+              floorMode={floorMode}
               speakerId={activeSpeaker?.id || null}
               speakerName={activeSpeaker?.name || null}
               onClearSpeaker={() =>
@@ -1104,7 +1127,7 @@ export const PODashboard: React.FC = () => {
           </div>
 
           {/* Bento Card 4: Recency & Precedence Queue Rankings Card */}
-          <div className="bg-white border border-[#CBD5E1]/80 rounded-2xl p-4 sm:p-5 shadow-[0_1px_4px_rgba(0,0,0,0.03)] space-y-3.5">
+          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-3.5">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <span className="text-xs font-mono font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <Award className="w-4 h-4 text-[#006948]" />
@@ -1117,7 +1140,7 @@ export const PODashboard: React.FC = () => {
 
             {/* Target Winner / Highest Precedence */}
             {winner ? (
-              <div className="p-4 rounded-2xl bg-slate-50/80 border border-slate-200/90 shadow-xs space-y-3">
+              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/70 border border-slate-200/60 shadow-xs space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2.5 min-w-0">
                     <span className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight truncate" title={winner.name}>
@@ -1125,7 +1148,7 @@ export const PODashboard: React.FC = () => {
                     </span>
                   </div>
                   {winner.school && (
-                    <span className="shrink-0 text-xs font-mono text-slate-500 bg-white px-2.5 py-1 rounded-lg border border-slate-200/80">
+                    <span className="shrink-0 text-xs font-mono text-slate-500 font-medium">
                       {winner.school}
                     </span>
                   )}
@@ -1148,7 +1171,7 @@ export const PODashboard: React.FC = () => {
                   <div className="space-y-2 pt-1 font-mono text-xs">
                     <button
                       onClick={() => handleAwardAction(winner, 'question')}
-                      className="w-full py-3 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs"
+                      className="w-full py-2.5 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs"
                     >
                       Give Question (30s CX)
                     </button>
@@ -1157,13 +1180,13 @@ export const PODashboard: React.FC = () => {
                         onClick={() => handleAwardAction(winner, 'speech_aff')}
                         className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
                       >
-                        Aff
+                        {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
                       </button>
                       <button
                         onClick={() => handleAwardAction(winner, 'speech_neg')}
                         className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
                       >
-                        Neg
+                        {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
                       </button>
                       <button
                         onClick={() => handleAwardAction(winner, 'speech_author')}
@@ -1179,13 +1202,13 @@ export const PODashboard: React.FC = () => {
                       onClick={() => handleAwardAction(winner, 'speech_aff')}
                       className="py-2.5 px-3 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-[#006948] border border-emerald-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
                     >
-                      Give Aff
+                      Give {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
                     </button>
                     <button
                       onClick={() => handleAwardAction(winner, 'speech_neg')}
                       className="py-2.5 px-3 rounded-xl font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
                     >
-                      Give Neg
+                      Give {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
                     </button>
                     <button
                       onClick={() => handleAwardAction(winner, 'speech_author')}

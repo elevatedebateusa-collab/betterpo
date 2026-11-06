@@ -44,7 +44,9 @@ export default {
         },
       },
       fontFamily: {
-        sans: ["Inter", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"],
+        po: ["'Plus Jakarta Sans'", "'Segoe UI'", "-apple-system", "BlinkMacSystemFont", "Inter", "Roboto", "sans-serif"],
+        fieldHeader: ["Arial", "'Helvetica Neue'", "Helvetica", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+        sans: ["'Plus Jakarta Sans'", "Inter", "-apple-system", "BlinkMacSystemFont", "system-ui", "sans-serif"],
         mono: ["Geist", "Inter", "sans-serif"],
         serif: ["Literata", "Georgia", "serif"],
         hand: ["Patrick Hand", "Caveat", "cursive"],

@@ -95,14 +95,12 @@ export const CycleSequenceMonitor: React.FC<CycleSequenceMonitorProps> = ({
           )}
         </div>
 
-        {/* Speeches on Bill Pill */}
-        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-          <div className="px-2.5 py-1 rounded-md bg-white border border-slate-200 text-center shadow-sm">
-            <div className="text-[9px] text-slate-400 font-mono font-bold uppercase">Speeches</div>
-            <div className="text-xs font-mono font-black text-slate-800">
+        {/* Speeches on Bill Plain Text Counter */}
+        <div className="flex items-center gap-1.5 self-end sm:self-center shrink-0">
+          <span className="text-[10px] text-slate-400 font-mono font-bold uppercase tracking-wider">Speeches:</span>
+          <span className="text-sm font-mono font-bold tabular-nums text-slate-800">
               {speechCountOnBill}
-            </div>
-          </div>
+          </span>
         </div>
       </div>
 
@@ -110,12 +108,8 @@ export const CycleSequenceMonitor: React.FC<CycleSequenceMonitorProps> = ({
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pt-0.5">
         <div className="flex items-center gap-2">
           <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-mono text-[11px] font-bold ${sideBadgeClass}`}>
-            {expectedSide === 'any' ? (
+            {expectedSide === 'any' && (
               <AlertTriangle className="w-3 h-3 text-amber-600" />
-            ) : expectedSide === 'neg' ? (
-              <span className="w-2 h-2 rounded-full bg-rose-500 animate-pulse" />
-            ) : (
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
             )}
             <span>{sideDescription}</span>
           </span>

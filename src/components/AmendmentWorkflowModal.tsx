@@ -130,7 +130,7 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                 </label>
                 <input
                   type="text"
-                  placeholder="e.g. 14-8 or Voice Vote with unanimous consent"
+                  placeholder=""
                   value={voteNotes}
                   onChange={(e) => setVoteNotes(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#006948]/20 focus:border-[#006948]"
@@ -188,7 +188,7 @@ export const AmendmentWorkflowModal: React.FC<AmendmentWorkflowModalProps> = ({
                 <textarea
                   required
                   rows={4}
-                  placeholder='e.g., "Amend Section 2, Line 15 to strike the words \"five years\" and insert \"two years\"."'
+                  placeholder=""
                   value={amendmentText}
                   onChange={(e) => setAmendmentText(e.target.value)}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#006948]/20 focus:border-[#006948] resize-none font-mono"
