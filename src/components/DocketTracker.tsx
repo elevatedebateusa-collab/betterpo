@@ -316,19 +316,19 @@ export const DocketTracker: React.FC<DocketTrackerProps> = ({
                           </span>
 
                           {isFloorActive ? (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider bg-emerald-100 text-[#006948] border border-emerald-300/80">
+                            <span className="text-xs font-bold font-mono uppercase tracking-wider text-[#006948]">
                               Active On Floor
                             </span>
                           ) : (
                             <span
-                              className={`px-2 py-0.5 rounded-md text-[10px] font-bold font-mono uppercase tracking-wider ${
+                              className={`text-xs font-bold font-mono uppercase tracking-wider ${
                                 bill.status === 'passed'
-                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  ? 'text-emerald-700'
                                   : bill.status === 'failed'
-                                  ? 'bg-rose-50 text-rose-700 border border-rose-200'
+                                  ? 'text-rose-700'
                                   : bill.status === 'tabled'
-                                  ? 'bg-slate-100 text-slate-600 border border-slate-200'
-                                  : 'bg-sky-50 text-sky-700 border border-sky-200'
+                                  ? 'text-slate-500'
+                                  : 'text-sky-700'
                               }`}
                             >
                               {bill.status}
@@ -336,7 +336,7 @@ export const DocketTracker: React.FC<DocketTrackerProps> = ({
                           )}
 
                           {bill.cycle_broken && (
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
+                            <span className="text-xs font-bold font-mono text-amber-800">
                               Cycle Broken
                             </span>
                           )}
@@ -353,7 +353,7 @@ export const DocketTracker: React.FC<DocketTrackerProps> = ({
                       </div>
                     </div>
 
-                    <div className="text-right text-xs font-mono text-slate-500 shrink-0 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/60 self-start sm:self-auto">
+                    <div className="text-right text-xs font-mono text-slate-500 shrink-0 self-start sm:self-auto">
                       <span className="text-slate-900 font-bold">{bill.speech_count}</span> speeches given
                     </div>
                   </div>

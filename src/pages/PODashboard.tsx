@@ -5,7 +5,6 @@ import {
   RotateCcw, 
   Lock, 
   AlertCircle, 
-  Award,
   BookOpen,
   ArrowRight,
   X
@@ -943,18 +942,18 @@ export const PODashboard: React.FC = () => {
             <span>Add Debaters</span>
           </button>
 
-          {/* Single Simple Motion Button */}
+          {/* Move to Previous Question Button */}
           <button
             onClick={() => {
-              setVoteModalMotionName('');
-              setVoteModalThreshold('majority');
-              setIsPQFlow(false);
+              setVoteModalMotionName('Previous Question (Close Debate)');
+              setVoteModalThreshold('two_thirds');
+              setIsPQFlow(true);
               setShowVoteModal(true);
             }}
-            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors"
-            title="Vote on Floor Motion"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-colors cursor-pointer"
+            title="Move to Previous Question (Close Debate & Vote on Legislation)"
           >
-            <span>Motion</span>
+            <span>Move to Previous Question</span>
           </button>
 
           <button
@@ -1337,8 +1336,7 @@ export const PODashboard: React.FC = () => {
             ) : (
               <>
                 <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <span className="text-xs font-mono font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                    <Award className="w-4 h-4 text-[#006948]" />
+                  <span className="text-xs font-mono font-bold text-slate-800 uppercase tracking-wider">
                     Precedence & Recency Queue
                   </span>
                   <span className="text-[11px] font-mono text-slate-400">
