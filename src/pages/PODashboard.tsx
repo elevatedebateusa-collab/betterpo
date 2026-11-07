@@ -4,10 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { 
   RotateCcw, 
   Lock, 
-  AlertCircle, 
-  BookOpen,
-  ArrowRight,
-  X
+  AlertCircle
 } from 'lucide-react';
 import { chamberService } from '../lib/chamberService';
 import { 
@@ -54,7 +51,6 @@ export const PODashboard: React.FC = () => {
   const [showRosterModal, setShowRosterModal] = useState<boolean>(false);
   const [showDocketModal, setShowDocketModal] = useState<boolean>(false);
   const [showDocketNominationModal, setShowDocketNominationModal] = useState<boolean>(false);
-  const [docketBannerDismissed, setDocketBannerDismissed] = useState<boolean>(false);
   const [showAmendmentModal, setShowAmendmentModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showAuditLogFull, setShowAuditLogFull] = useState<boolean>(false);
@@ -1042,50 +1038,20 @@ export const PODashboard: React.FC = () => {
           Reminds the PO to open the floor for docket nominations
           before beginning debate when no docket has been adopted yet.
           ======================================================== */}
-      {bills.length === 0 && !docketBannerDismissed && (
-        <section className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-white border-b border-emerald-300/80 px-4 sm:px-6 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] animate-fade-in">
-          <div className="max-w-[1680px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
-            <div className="flex items-start sm:items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-[#006948] text-white flex items-center justify-center shrink-0 shadow-xs">
-                <BookOpen className="w-4 h-4" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-[#006948] text-white uppercase tracking-wider">
-                    Chamber Procedure
-                  </span>
-                  <span className="font-po-ui font-bold text-sm text-slate-900">
-                    Open the floor for docket nominations
-                  </span>
-                </div>
-                <p className="text-xs text-slate-600 mt-0.5 font-sans">
-                  Say to the chamber:{' '}
-                  <span className="font-semibold text-emerald-950 italic">
-                    &ldquo;The Chair will now entertain motions to open the floor for docket nominations.&rdquo;
-                  </span>
-                </p>
-              </div>
-            </div>
+      {bills.length === 0 && (
+        <section className="bg-emerald-50/70 border-b border-emerald-200/80 px-4 sm:px-6 py-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] animate-fade-in">
+          <div className="max-w-[1680px] mx-auto flex items-center justify-between gap-4">
+            <span className="font-po-ui font-semibold text-sm sm:text-base text-slate-900">
+              Open the floor for docket nominations
+            </span>
 
-            <div className="flex items-center gap-2 self-end md:self-center shrink-0">
-              <button
-                type="button"
-                onClick={() => setShowDocketNominationModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-mono font-bold text-xs shadow-xs transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
-              >
-                <span>Start Docket Nominations</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setDocketBannerDismissed(true)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
-                title="Dismiss reminder"
-                aria-label="Dismiss reminder"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={() => setShowDocketNominationModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-mono font-bold text-xs shadow-xs transition-all active:scale-[0.98] cursor-pointer shrink-0"
+            >
+              <span>Start Docket Nominations</span>
+            </button>
           </div>
         </section>
       )}
