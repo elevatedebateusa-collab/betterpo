@@ -79,11 +79,9 @@ export const CycleSequenceMonitor: React.FC<CycleSequenceMonitorProps> = ({
           </div>
           <div className="font-serif-editorial font-bold text-slate-900 text-sm truncate">
             {activeBill ? (
-              <span>
-                <span className="text-emerald-700">{activeBill.bill_number}:</span> {activeBill.title}
-              </span>
+              <span>{activeBill.title || activeBill.bill_number}</span>
             ) : room.current_legislation ? (
-              room.current_legislation
+              room.current_legislation.replace(/^(bill\s*\d+|res\s*\d+)[:.-]?\s*/i, '')
             ) : (
               'No active bill selected from docket'
             )}

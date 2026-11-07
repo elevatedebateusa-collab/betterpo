@@ -91,7 +91,7 @@ export function resolveStandingWinner(
   }
 
   // Filter for standing, active, and present representatives
-  const standingReps = allReps.filter((r) => standingSet.has(r.id) && r.active && r.is_present !== false);
+  const standingReps = allReps.filter((r) => standingSet.has(r.id) && r.active !== false && r.is_present !== false);
   if (standingReps.length === 0) {
     return {
       winner: null,

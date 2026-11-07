@@ -241,12 +241,12 @@
             if (!document.querySelector('link[href*="index.css"]')) {
               const link = document.createElement('link');
               link.rel = 'stylesheet';
-              link.href = './assets/index.css';
+              link.href = '/assets/index.css';
               document.head.appendChild(link);
             }
             const script = document.createElement('script');
             script.type = 'module';
-            script.src = './assets/app.js';
+            script.src = '/assets/app.js';
             document.body.appendChild(script);
           }
         }

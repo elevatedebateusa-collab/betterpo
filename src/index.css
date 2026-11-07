@@ -4,18 +4,17 @@
 
 @layer base {
   body {
-    @apply bg-white text-[#0A1128];
-    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    @apply bg-white text-slate-900;
+    font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
     min-height: 100vh;
     user-select: none;
     overflow-x: hidden;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
 
   ::selection {
-    background-color: rgba(16, 185, 129, 0.25);
+    background-color: rgba(16, 185, 129, 0.2);
     color: #065f46;
   }
 }
@@ -33,38 +32,27 @@
   background-color: #047857;
 }
 
-/* Tri-font typographic helpers */
-.font-po-ui {
-  font-family: 'Plus Jakarta Sans', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', Roboto, sans-serif;
-  letter-spacing: -0.012em;
+/* Harmonized Typographic System (Plus Jakarta Sans + Geist Monospace) */
+.font-po-ui,
+.font-field-header,
+.font-serif-editorial,
+.font-sans-humanist,
+.font-sans {
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.font-mono,
+.font-mono-telemetry {
+  font-family: 'Geist Mono', 'Geist', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-feature-settings: "tnum" 1;
 }
 
 .panel-smooth {
-  border-radius: 20px;
-  border: 1px solid rgba(226, 232, 240, 0.7);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.02);
+  border-radius: 1rem;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
 }
 
-.font-field-header {
-  font-family: Arial, 'Helvetica Neue', Helvetica, -apple-system, BlinkMacSystemFont, sans-serif;
-  letter-spacing: -0.015em;
-}
-
-.font-serif-editorial {
-  font-family: 'Newsreader', 'Playfair Display', Georgia, serif;
-}
-
-.font-mono-telemetry {
-  font-family: 'Geist', 'Inter', sans-serif;
-}
-
-.font-sans-humanist {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
-}
-
-/* Reference typography: a neutral Helvetica/Arial-style face in regular weight.
-   Keep this outside Tailwind layers so title/action utilities cannot restore
-   the previous bold serif or widely tracked button styling. */
 :root {
   --background: 0 0% 100%;
   --foreground: 224 60% 10%;
@@ -80,27 +68,20 @@
   --ring: 161 100% 21%;
   --destructive: 0 72% 51%;
   --destructive-foreground: 0 0% 100%;
-  --font-title-action: Arial, 'Helvetica Neue', Helvetica, sans-serif;
-  --font-button: 'Lato', 'Segoe UI', Arial, sans-serif;
+  --font-title-action: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-button: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-:is(h1, h2, h3, h4, h5, h6, .font-serif-editorial) {
+:is(h1, h2, h3, h4, h5, h6) {
   font-family: var(--font-title-action);
-  font-weight: 400;
-  font-style: normal;
-  font-feature-settings: normal;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.02em;
 }
 
 :is(button, [role='button'], input[type='button'], input[type='submit'], input[type='reset']) {
   font-family: var(--font-button);
-  font-weight: 400;
-  font-style: normal;
-  font-feature-settings: normal;
-  letter-spacing: normal;
 }
 
-:is(button, [role='button']) :is(span, .font-sans, .font-mono, .font-serif-editorial) {
+:is(button, [role='button']) :is(span, .font-sans, .font-serif-editorial) {
   font-family: inherit;
   font-weight: inherit;
   font-style: inherit;

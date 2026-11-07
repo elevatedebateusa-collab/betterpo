@@ -55,7 +55,7 @@ export const QuorumVotingBar: React.FC<QuorumVotingBarProps> = ({
   }, [isPQFlow]);
 
   // Quorum Calculations
-  const presentSenators = representatives.filter((r) => r.is_present !== false && r.active).length;
+  const presentSenators = representatives.filter((r) => r.is_present !== false && r.active !== false).length;
 
   // Simple Majority: > 50% of voting members present
   const simpleMajorityThreshold = Math.floor(presentSenators / 2) + 1;

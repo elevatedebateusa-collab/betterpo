@@ -5,10 +5,7 @@ import {
   Pause, 
   RotateCcw, 
   Plus, 
-  Minus, 
-  Volume2, 
-  VolumeX 
-} from 'lucide-react';
+  Minus} from 'lucide-react';
 import { 
   supabase, 
   isSupabaseConfigured, 
@@ -46,6 +43,7 @@ interface ChamberTimerProps {
   autoStartTrigger?: number; // increments when an action is awarded
   autoStartConfig?: TimerAutoStartConfig;
   onRecessChange?: (isRecess: boolean) => void;
+  onTimerTick?: (secondsLeft: number, mode: string) => void;
 }
 
 export const ChamberTimer: React.FC<ChamberTimerProps> = ({
@@ -60,20 +58,16 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
   autoStartTrigger = 0,
   autoStartConfig,
   onRecessChange,
+  onTimerTick,
 }) => {
   const [duration, setDuration] = useState<number>(190); // 3:10 default (3:00 speech + 10s grace)
   const [secondsLeft, setSecondsLeft] = useState<number>(190);
   const [isRunning, setIsRunning] = useState<boolean>(false);
   const [mode, setMode] = useState<'speech' | 'dq' | 'question' | 'recess' | 'custom'>('speech');
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
 
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  // Gavel alert tracker flags to prevent duplicate pings
-  const pinged1MinRef = useRef<boolean>(false);
-  const pinged30SecRef = useRef<boolean>(false);
-  const pingedGraceRef = useRef<boolean>(false);
-  const pingedExpiredRef = useRef<boolean>(false);
+  useEffect(() => {
+    onTimerTick?.(secondsLeft, mode);
+  }, [secondsLeft, mode, onTimerTick]);
 
   // Auto-start timer when action (speech or question) is awarded
   useEffect(() => {
@@ -85,56 +79,12 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
       setSecondsLeft(targetDuration);
       setIsRunning(true);
       setMode(targetMode);
-      resetGavelRefs();
       broadcast(targetDuration, true, targetDuration, targetMode, autoStartConfig?.questionerName);
       if (roomId) {
         chamberService.updateRoomTimer(roomId, 'running', targetDuration, targetDuration, targetMode);
       }
     }
   }, [autoStartTrigger, autoStartConfig, isPO, roomId]);
-
-  const resetGavelRefs = () => {
-    pinged1MinRef.current = false;
-    pinged30SecRef.current = false;
-    pingedGraceRef.current = false;
-    pingedExpiredRef.current = false;
-  };
-
-  // Synthesize Realistic Wooden Gavel Tap
-  const playGavelSound = (taps: number) => {
-    if (!soundEnabled) return;
-    try {
-      const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new AudioCtx();
-      }
-      const ctx = audioCtxRef.current;
-      if (ctx.state === 'suspended') {
-        ctx.resume();
-      }
-
-      for (let i = 0; i < taps; i++) {
-        const offset = i * 0.22;
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(175, ctx.currentTime + offset);
-        osc.frequency.exponentialRampToValueAtTime(35, ctx.currentTime + offset + 0.12);
-
-        gain.gain.setValueAtTime(0.75, ctx.currentTime + offset);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + offset + 0.15);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime + offset);
-        osc.stop(ctx.currentTime + offset + 0.18);
-      }
-    } catch (e) {
-      console.warn('Audio playback not initialized:', e);
-    }
-  };
 
   // Broadcast timer state
   const broadcast = (
@@ -171,40 +121,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
         setSecondsLeft((prev) => {
           const next = prev - 1;
 
-          if (mode === 'speech') {
-            const oneMinTarget = duration === 190 ? 70 : 60;
-            const thirtySecTarget = duration === 190 ? 40 : 30;
-            const graceTarget = duration === 190 ? 10 : 0;
-            const expiredTarget = duration === 190 ? 0 : -10;
-
-            if (next === oneMinTarget && !pinged1MinRef.current) {
-              playGavelSound(1);
-              pinged1MinRef.current = true;
-            }
-            if (next === thirtySecTarget && !pinged30SecRef.current) {
-              playGavelSound(2);
-              pinged30SecRef.current = true;
-            }
-            if (next === graceTarget && !pingedGraceRef.current) {
-              playGavelSound(3);
-              pingedGraceRef.current = true;
-            }
-            if (next === expiredTarget && !pingedExpiredRef.current) {
-              playGavelSound(4);
-              pingedExpiredRef.current = true;
-            }
-          } else if (mode === 'dq' || mode === 'question') {
-            if (next === 0 && !pingedGraceRef.current) {
-              playGavelSound(2);
-              pingedGraceRef.current = true;
-            }
-          } else if (mode === 'recess') {
-            if (next === 0 && !pingedGraceRef.current) {
-              playGavelSound(3);
-              pingedGraceRef.current = true;
-            }
-          }
-
           return next;
         });
       }, 1000);
@@ -213,7 +129,7 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [isPO, isRunning, duration, mode, speakerId, speakerName, soundEnabled]);
+  }, [isPO, isRunning, duration, mode, speakerId, speakerName]);
 
   // Subscribe to Realtime Timer Broadcasts (For Spectators)
   useEffect(() => {
@@ -227,31 +143,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
             setDuration(data.duration);
             setIsRunning(data.is_running);
             setMode(data.mode);
-
-            if (data.mode === 'speech') {
-              const dur = data.duration || 190;
-              const oneMinTarget = dur === 190 ? 70 : 60;
-              const thirtySecTarget = dur === 190 ? 40 : 30;
-              const graceTarget = dur === 190 ? 10 : 0;
-              const expiredTarget = dur === 190 ? 0 : -10;
-
-              if (data.seconds_left === oneMinTarget && !pinged1MinRef.current) {
-                playGavelSound(1);
-                pinged1MinRef.current = true;
-              }
-              if (data.seconds_left === thirtySecTarget && !pinged30SecRef.current) {
-                playGavelSound(2);
-                pinged30SecRef.current = true;
-              }
-              if (data.seconds_left === graceTarget && !pingedGraceRef.current) {
-                playGavelSound(3);
-                pingedGraceRef.current = true;
-              }
-              if (data.seconds_left === expiredTarget && !pingedExpiredRef.current) {
-                playGavelSound(4);
-                pingedExpiredRef.current = true;
-              }
-            }
           }
         })
         .subscribe();
@@ -289,7 +180,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     const target = targetSecs !== undefined ? targetSecs : duration;
     setIsRunning(false);
     setSecondsLeft(target);
-    resetGavelRefs();
     broadcast(target, false, duration, mode);
     if (roomId) {
       chamberService.updateRoomTimer(roomId, 'reset', target, duration, mode);
@@ -301,7 +191,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     setMode(timerMode);
     setIsRunning(false);
     setSecondsLeft(secs);
-    resetGavelRefs();
     if (timerMode === 'recess') {
       onRecessChange?.(true);
     } else {
@@ -389,7 +278,9 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
               ? 'Recess'
               : mode === 'question'
               ? (autoStartConfig?.questionerName || questionerName
-                  ? `Question: ${extractLastName(autoStartConfig?.questionerName || questionerName)}`
+                  ? (speakerName
+                      ? `CX: ${extractLastName(speakerName)} (Q: ${extractLastName(autoStartConfig?.questionerName || questionerName)})`
+                      : `Question: ${extractLastName(autoStartConfig?.questionerName || questionerName)}`)
                   : speakerName
                   ? `CX: ${extractLastName(speakerName)}`
                   : 'Floor Clear')
@@ -406,22 +297,6 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
               (Clear)
             </button>
           )}
-        </div>
-
-        {/* Sound Toggle */}
-        <div className="flex items-center gap-2">
-
-          <button
-            onClick={() => setSoundEnabled(!soundEnabled)}
-            className={`p-2 rounded-xl border border-slate-200 text-xs transition-colors ${
-              soundEnabled
-                ? 'bg-slate-100 border-slate-200 text-slate-700 hover:bg-slate-200'
-                : 'bg-white border-slate-200 text-slate-400'
-            }`}
-            title={soundEnabled ? 'Mute Audio Signals' : 'Enable Gavel Sounds'}
-          >
-            {soundEnabled ? <Volume2 className="w-3.5 h-3.5 text-emerald-600" /> : <VolumeX className="w-3.5 h-3.5" />}
-          </button>
         </div>
       </div>
 

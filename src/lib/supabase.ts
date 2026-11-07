@@ -241,6 +241,7 @@ export function getStoredReps(roomId?: string): Representative[] {
     const all: Representative[] = raw ? JSON.parse(raw) : [];
     const normalized = all.map(r => ({
       ...r,
+      active: r.active !== undefined ? r.active : true,
       is_present: r.is_present !== undefined ? r.is_present : true,
     }));
     return roomId ? normalized.filter(r => r.room_id === roomId) : normalized;

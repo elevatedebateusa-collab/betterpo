@@ -1,5 +1,4 @@
 import { SelectionGroup } from '@/components/ui/selection-group';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import React, { useState } from 'react';
 import { 
@@ -66,7 +65,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
   if (!isOpen) return null;
 
   // Quorum Calculations
-  const presentSenators = representatives.filter((r) => r.is_present !== false && r.active).length;
+  const presentSenators = representatives.filter((r) => r.is_present !== false && r.active !== false).length;
   const majorityThreshold = Math.floor(presentSenators / 2) + 1;
 
   // --- STEP 1: POOL MANAGEMENT ---
@@ -133,7 +132,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
       const allIds = validPoolBills.map((b) => b.id);
       const defaultSlate1: DocketSlate = {
         id: 'slate_1',
-        name: 'Docket Slate 1',
+        name: 'Docket A',
         nominator: '',
         billIds: [...allIds],
         ayes: 0,
@@ -144,7 +143,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
       const alternativeIds = allIds.length > 1 ? [allIds[1], allIds[0], ...allIds.slice(2)] : [...allIds];
       const defaultSlate2: DocketSlate = {
         id: 'slate_2',
-        name: 'Docket Slate 2',
+        name: 'Docket B',
         nominator: '',
         billIds: alternativeIds,
         ayes: 0,
@@ -170,12 +169,12 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
     setStep('nominate');
   };
 
-  // --- STEP 2: SLATE MANAGEMENT ---
+  // --- STEP 2: DOCKET NOMINATION MANAGEMENT ---
   const handleAddSlate = () => {
-    const nextNum = slates.length + 1;
+    const nextLetter = String.fromCharCode(65 + slates.length);
     const newSlate: DocketSlate = {
       id: `slate_${Date.now()}`,
-      name: `Docket Slate ${nextNum}`,
+      name: `Docket ${nextLetter}`,
       nominator: '',
       billIds: validPoolBills.map((b) => b.id),
       ayes: 0,
@@ -444,14 +443,14 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
             </TabsContent>
 
           {/* ========================================================
-              STEP 2: NOMINATE DOCKET SLATES & REORDER BILLS
+              STEP 2: NOMINATE DOCKETS & REORDER BILLS
               ======================================================== */}
           <TabsContent value="nominate" className="space-y-4 mt-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">Nominated Docket Slates</h4>
+                  <h4 className="font-bold text-slate-900 text-sm">Nominated Dockets</h4>
                   <p className="text-xs text-slate-500">
-                    Senators nominate different docket sequences. Arrange each slate's order using ▲/▼ buttons.
+                    Senators nominate different docket sequences. Arrange each docket's order using ▲/▼ buttons.
                   </p>
                 </div>
 
@@ -461,7 +460,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                   className="px-3.5 py-1.5 rounded-lg bg-[#006948] hover:bg-[#005137] text-white font-mono font-bold text-xs transition-all shadow-xs flex items-center gap-1.5"
                 >
                   <Plus className="w-3.5 h-3.5" />
-                  <span>Nominate Slate</span>
+                  <span>Nominate Docket</span>
                 </button>
               </div>
 
@@ -479,8 +478,8 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                       {/* Slate Header */}
                       <div className="flex items-center justify-between gap-2 border-b border-slate-200/80 pb-2">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                          <span className="shrink-0 w-6 h-6 rounded-lg bg-emerald-100 text-[#006948] font-mono text-xs font-bold flex items-center justify-center">
-                            {sIdx + 1}
+                          <span className="shrink-0 w-6 h-6 rounded-lg bg-slate-200 text-slate-800 font-mono text-xs font-bold flex items-center justify-center">
+                            {String.fromCharCode(65 + sIdx)}
                           </span>
                           <input
                             type="text"
@@ -496,7 +495,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                             type="button"
                             onClick={() => handleRemoveSlate(slate.id)}
                             className="p-1 text-slate-400 hover:text-rose-600 rounded"
-                            title="Remove nomination slate"
+                            title="Remove docket nomination"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
@@ -519,11 +518,8 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                                   #{bIdx + 1}
                                 </span>
                                 <div className="truncate">
-                                  <span className="font-bold text-slate-900 mr-1.5">
-                                    {bill.billNumber}:
-                                  </span>
-                                  <span className="text-slate-600 truncate">
-                                    {bill.title}
+                                  <span className="font-bold text-slate-900 truncate">
+                                    {bill.title || bill.billNumber}
                                   </span>
                                 </div>
                               </div>
@@ -560,12 +556,12 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
             </TabsContent>
 
           {/* ========================================================
-              STEP 3: VOTING ON DOCKET SLATES & ADOPTING OFFICIAL ORDER
+              STEP 3: VOTING ON DOCKETS & ADOPTING OFFICIAL ORDER
               ======================================================== */}
           <TabsContent value="vote" className="space-y-4 mt-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h4 className="font-bold text-slate-900 text-sm">Chamber Voting on Docket Slates</h4>
+                  <h4 className="font-bold text-slate-900 text-sm">Chamber Voting on Dockets</h4>
                   <p className="text-xs text-slate-500 font-mono">
                     {presentSenators} voting members present • Majority threshold is {majorityThreshold} Ayes
                   </p>
@@ -575,7 +571,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
               <SelectionGroup
                 aria-label="Selected docket winner" value={activeWinner?.id || ''} onValueChange={setSelectedWinnerId}
                 disabled={isSubmitting}
-                options={slates.map((slate, index) => ({ value: slate.id, label: slate.name || 'Docket Slate ' + (index + 1) }))}
+                options={slates.map((slate, index) => ({ value: slate.id, label: slate.name || ('Docket ' + String.fromCharCode(65 + index)) }))}
               />
 
               {/* Vote Cards Grid */}
@@ -589,10 +585,10 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                   return (
                     <div
                       key={slate.id}
-                      className={`p-4 rounded-2xl border transition-all ${
+                      className={`p-4 rounded-2xl border-2 transition-all bg-white ${
                         isCurrentSelectedWinner
-                          ? 'bg-emerald-50/60 border-[#006948] ring-2 ring-[#006948]/20 shadow-sm'
-                          : 'bg-white border-slate-200'
+                          ? 'border-[#006948] shadow-xs'
+                          : 'border-slate-200'
                       }`}
                     >
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2.5 border-b border-slate-100">
@@ -602,13 +598,13 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                               {slate.name}
                             </span>
                             {hasPassedMajority && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-600 text-white">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-700 text-white">
                                 ADOPTED (MAJORITY)
                               </span>
                             )}
                             {isCurrentSelectedWinner && (
-                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-[#006948] text-white">
-                                SELECTED DOCKET
+                              <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium text-slate-600 bg-slate-100 border border-slate-200">
+                                Selected
                               </span>
                             )}
                           </div>
@@ -626,8 +622,6 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                             })}
                           </div>
                         </div>
-
-                        {isCurrentSelectedWinner && <Badge variant="primary" size="sm">Selected Winner</Badge>}
                       </div>
 
                       {/* Vote Tally Controls */}
@@ -735,7 +729,7 @@ export const DocketNominationModal: React.FC<DocketNominationModalProps> = ({
                 className="px-3 py-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 flex items-center gap-1 transition-colors"
               >
                 <ArrowLeft className="w-3.5 h-3.5" />
-                <span>Back to Docket Slates</span>
+                <span>Back to Nominate Dockets</span>
               </button>
             )}
           </div>

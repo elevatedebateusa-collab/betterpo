@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 
 interface GavelTappingLoaderProps {
   title?: string;
@@ -11,59 +11,7 @@ export const GavelTappingLoader: React.FC<GavelTappingLoaderProps> = ({
   title = "Creating Chamber...",
   subtitle = "INITIALIZING DOCKET, ROSTER & NSDA PARLIAMENTARY RULES",
   className = "",
-  soundEnabled = true,
 }) => {
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  // Play subtle wooden gavel strike sound synchronized with the 900ms loop
-  useEffect(() => {
-    if (!soundEnabled) return;
-
-    let intervalId: ReturnType<typeof setInterval>;
-
-    const playStrikeSound = () => {
-      try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (!audioCtxRef.current) {
-          audioCtxRef.current = new AudioCtx();
-        }
-        const ctx = audioCtxRef.current;
-        if (ctx.state === 'suspended') {
-          ctx.resume().catch(() => {});
-        }
-
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(160, ctx.currentTime);
-        osc.frequency.exponentialRampToValueAtTime(36, ctx.currentTime + 0.12);
-
-        gain.gain.setValueAtTime(0.25, ctx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
-
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-
-        osc.start(ctx.currentTime);
-        osc.stop(ctx.currentTime + 0.15);
-      } catch {
-        // silent audio fallback
-      }
-    };
-
-    // First strike occurs at ~160ms into the 900ms loop
-    const firstStrike = setTimeout(() => {
-      playStrikeSound();
-      intervalId = setInterval(playStrikeSound, 900);
-    }, 162);
-
-    return () => {
-      clearTimeout(firstStrike);
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [soundEnabled]);
-
   return (
     <div className={`flex flex-col items-center justify-center p-8 text-center select-none ${className}`}>
       <style>{`

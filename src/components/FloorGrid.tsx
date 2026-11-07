@@ -13,6 +13,7 @@ import { resolveStandingWinner } from '../lib/precedence';
 interface FloorGridProps {
   representatives: Representative[];
   standingIds: Set<string>;
+  currentSpeakerId?: string | null;
   onToggleStanding: (id: string) => void;
   onClearStanding: () => void;
   onToggleActive?: (rep: Representative) => void;
@@ -275,7 +276,7 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
     // Hold threshold: 200ms
     holdTimerRef.current = setTimeout(() => {
       startDrag();
-    }, 200);
+    }, 450);
 
     const onGlobalPointerMove = (moveEv: PointerEvent) => {
       const dx = moveEv.clientX - startX;
@@ -283,7 +284,7 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
       const dist = Math.hypot(dx, dy);
 
       // If user moved > 8px before 200ms timer fired, begin drag immediately
-      if (!isDraggingRef.current && dist > 8) {
+      if (!isDraggingRef.current && dist > 14) {
         if (holdTimerRef.current) {
           clearTimeout(holdTimerRef.current);
           holdTimerRef.current = null;
@@ -291,7 +292,7 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
         startDrag();
       }
 
-      if (isDraggingRef.current) {
+      if (isDraggingRef.current && dist > 14) {
         setDragCursor({ x: moveEv.clientX, y: moveEv.clientY });
 
         // Hit-test target card under cursor
@@ -309,7 +310,7 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
       }
     };
 
-    const onGlobalPointerUp = () => {
+    const onGlobalPointerUp = (upEv: PointerEvent) => {
       if (holdTimerRef.current) {
         clearTimeout(holdTimerRef.current);
         holdTimerRef.current = null;
@@ -319,7 +320,11 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
       window.removeEventListener('pointerup', onGlobalPointerUp);
       window.removeEventListener('pointercancel', onGlobalPointerUp);
 
-      if (isDraggingRef.current) {
+      const dx = upEv.clientX - startX;
+      const dy = upEv.clientY - startY;
+      const dist = Math.hypot(dx, dy);
+
+      if (isDraggingRef.current && dist > 14) {
         const sourceId = rep.id;
         const targetId = dropTargetIdRef.current;
 
@@ -336,6 +341,13 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
         setTimeout(() => {
           justDraggedRef.current = false;
         }, 120);
+      } else {
+        isDraggingRef.current = false;
+        justDraggedRef.current = false;
+        setIsDragging(false);
+        setDraggedRep(null);
+        setDropTargetId(null);
+        dropTargetIdRef.current = null;
       }
     };
 
@@ -410,7 +422,9 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
       } flex-1 overflow-y-auto pr-1 pb-2`}>
         {displayedRoster.map((rep) => {
           const isPresent = rep.is_present !== false;
+          const isActive = rep.active !== false;
           const isStanding = standingIds.has(rep.id);
+          // isSpeaking removed: panel returns to normal when debater is awarded a speech
           const isWinner = winner?.id === rep.id;
           const isTiedWinner = isTie && tiedCandidates.some((c) => c.id === rep.id);
           const isBeingDragged = draggedRep?.id === rep.id;
@@ -423,8 +437,8 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
               onPointerDown={(e) => handleCardPointerDown(e, rep)}
               onDragStart={(e) => e.preventDefault()}
               onClick={() => {
-                if (justDraggedRef.current) return;
-                if (!rep.active || !isPresent) return;
+                if (justDraggedRef.current || isDraggingRef.current) return;
+                if (!isActive || !isPresent) return;
                 onToggleStanding(rep.id);
               }}
               className={`group relative rounded-xl select-none transition-all duration-150 flex flex-col justify-between ${
@@ -436,7 +450,7 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
                   ? 'opacity-25 border-2 border-dashed border-emerald-500 scale-95 shadow-inner'
                   : isCurrentDropTarget
                   ? 'ring-2 ring-emerald-500 bg-emerald-50/80 scale-[1.02] shadow-md z-20'
-                  : !rep.active
+                  : !isActive
                   ? 'bg-slate-50 border border-dashed border-slate-200 opacity-40 cursor-not-allowed'
                   : !isPresent
                   ? 'bg-slate-100/70 border border-slate-200 opacity-50 cursor-not-allowed'
@@ -449,12 +463,6 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
                   : 'bg-white border border-slate-200/70 hover:border-slate-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] cursor-pointer'
               }`}
             >
-              {/* Corner Ribbon for Winner Tile */}
-              {isWinner && (
-                <div className="absolute -top-1.5 -right-1.5 bg-emerald-600 text-white font-mono text-[8px] font-bold px-1.5 py-0.5 rounded shadow-sm">
-                  NEXT
-                </div>
-              )}
 
               {/* Header: Senator Name (Last Name Only for high visibility) & Standing Badge */}
               <div className="flex items-start justify-between gap-1">
@@ -481,25 +489,65 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
                   )}
                 </div>
 
-                {isWinner ? (
-                  null
-                ) : isTiedWinner ? (
-                  <span className="font-mono text-[9px] font-bold text-amber-600 shrink-0">
-                    Tie
-                  </span>
-                ) : isStanding ? (
-                  <span className="font-mono text-[9px] font-bold text-slate-500 tracking-wider shrink-0">
-                    STAND
-                  </span>
-                ) : !isPresent ? (
-                  <span className="font-mono text-[9px] font-bold text-slate-400 shrink-0">
-                    AWAY
-                  </span>
-                ) : null}
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Action Buttons: Presence Toggle & Active Toggle (shown to the left on hover) */}
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+                    {onTogglePresence && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onTogglePresence(rep);
+                        }}
+                        className={`w-5 h-5 rounded flex items-center justify-center text-[10px] transition-colors shadow-2xs ${
+                          isPresent
+                            ? 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50'
+                            : 'bg-rose-600 text-white font-bold'
+                        }`}
+                        title={isPresent ? 'Mark Away / Stepped Out' : 'Mark In Chamber'}
+                      >
+                        {isPresent ? <MapPin className="w-2.5 h-2.5" /> : <MapPinOff className="w-2.5 h-2.5" />}
+                      </button>
+                    )}
+
+                    {onToggleActive && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleActive(rep);
+                        }}
+                        className="w-5 h-5 rounded flex items-center justify-center bg-white border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-50 transition-colors shadow-2xs"
+                        title={isActive ? 'Mark Senator Inactive' : 'Mark Senator Active'}
+                      >
+                        {isActive ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5 text-emerald-600" />}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Status Badges */}
+                  {isWinner ? (
+                    <span className="font-mono text-[8.5px] font-bold text-white bg-emerald-600 px-1.5 py-0.5 rounded shadow-2xs shrink-0 tracking-wider">
+                      NEXT
+                    </span>
+                  ) : isTiedWinner ? (
+                    <span className="font-mono text-[9px] font-bold text-amber-600 shrink-0">
+                      Tie
+                    </span>
+                  ) : isStanding ? (
+                    <span className="font-mono text-[9px] font-bold text-slate-500 tracking-wider shrink-0">
+                      STAND
+                    </span>
+                  ) : !isPresent ? (
+                    <span className="font-mono text-[9px] font-bold text-slate-400 shrink-0">
+                      AWAY
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               {/* Counts Badge & Priority Note */}
-              <div className={`flex items-center justify-between pt-1 font-mono text-[9px] border-t border-slate-100 mt-1 ${
+              <div className={`flex items-center justify-between pt-1 font-mono text-[9px] border-t mt-1 ${
                 isWinner
                   ? 'border-emerald-200 text-emerald-900'
                   : isStanding
@@ -536,41 +584,6 @@ export const FloorGrid: React.FC<FloorGridProps> = ({
                     ? `#${rep.last_question_order} REC`
                     : 'NEVER'}
                 </div>
-              </div>
-
-              {/* Action Buttons: Presence Toggle & Active Toggle */}
-              <div className="absolute top-1 right-1 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity z-20">
-                {onTogglePresence && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onTogglePresence(rep);
-                    }}
-                    className={`p-0.5 rounded text-[10px] transition-colors shadow-sm ${
-                      isPresent
-                        ? 'bg-white border border-slate-200 text-slate-500 hover:text-slate-900'
-                        : 'bg-rose-600 text-white font-bold'
-                    }`}
-                    title={isPresent ? 'Mark Away / Stepped Out' : 'Mark In Chamber'}
-                  >
-                    {isPresent ? <MapPin className="w-2.5 h-2.5" /> : <MapPinOff className="w-2.5 h-2.5" />}
-                  </button>
-                )}
-
-                {onToggleActive && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onToggleActive(rep);
-                    }}
-                    className="p-0.5 rounded bg-white border border-slate-200 text-slate-500 hover:text-slate-900 transition-colors shadow-sm"
-                    title={rep.active ? 'Mark Senator Inactive' : 'Mark Senator Active'}
-                  >
-                    {rep.active ? <EyeOff className="w-2.5 h-2.5" /> : <Eye className="w-2.5 h-2.5 text-emerald-600" />}
-                  </button>
-                )}
               </div>
             </div>
           );

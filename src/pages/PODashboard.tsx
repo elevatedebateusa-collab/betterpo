@@ -62,6 +62,8 @@ export const PODashboard: React.FC = () => {
     duration: number;
     questionerName?: string | null;
   }>({ mode: 'speech', duration: 190 });
+  const [currentTimerSeconds, setCurrentTimerSeconds] = useState<number>(190);
+  const [currentTimerMode, setCurrentTimerMode] = useState<string>('speech');
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
 
   // Vote Calculator & Previous Question (PQ) State
@@ -233,10 +235,64 @@ export const PODashboard: React.FC = () => {
     return representatives.find((r) => r.id === room.current_speaker_id) || null;
   }, [room?.current_speaker_id, representatives]);
 
+  // Active questioner resolution (the senator currently questioning the speaker on the floor)
+  const activeQuestioner = useMemo(() => {
+    const isQuestionMode = currentTimerMode === 'question' || timerConfig.mode === 'question';
+    const qName = timerConfig.questionerName;
+    if (qName && isQuestionMode) {
+      const found = representatives.find(
+        (r) => r.name === qName || extractLastName(r.name) === extractLastName(qName)
+      );
+      if (found) return found;
+      return {
+        id: 'q_active',
+        room_id: room?.id || '',
+        name: qName,
+        school: '',
+        speeches_count: 0,
+        questions_count: 0,
+        last_speech_order: 0,
+        last_question_order: 0,
+        active: true,
+        is_present: true,
+        created_at: '',
+      } as Representative;
+    }
+
+    if (activeSpeaker && isQuestionMode && roundEvents.length > 0 && roundEvents[0].event_type === 'question') {
+      const found = representatives.find((r) => r.id === roundEvents[0].representative_id);
+      if (found) return found;
+    }
+
+    return null;
+  }, [timerConfig, currentTimerMode, representatives, roundEvents, activeSpeaker, room]);
+
   // Dynamically analyze all speeches on the active bill to determine exact Aff/Neg numbers
   const speechAnalysis = useMemo(() => {
     return analyzeBillSpeeches(roundEvents, activeBill?.id);
   }, [roundEvents, activeBill?.id]);
+
+  // Active speech label on active bill (e.g. "Speech #1: Authorship (Affirmative)")
+  const currentSpeechText = useMemo(() => {
+    if (!activeSpeaker) return null;
+    if (speechAnalysis.speeches.length > 0) {
+      const speakerSpeech = [...speechAnalysis.speeches].reverse().find(
+        (s) => s.representativeId === activeSpeaker.id
+      );
+      if (speakerSpeech) return speakerSpeech.fullLabel;
+      return speechAnalysis.speeches[speechAnalysis.speeches.length - 1].fullLabel;
+    }
+    return 'Speech #1: Authorship (Affirmative)';
+  }, [activeSpeaker, speechAnalysis]);
+
+  const formatTimerClock = (totalSecs: number) => {
+    const isNegative = totalSecs < 0;
+    const absSecs = Math.abs(totalSecs);
+    const m = Math.floor(absSecs / 60);
+    const s = absSecs % 60;
+    const prefix = isNegative ? '-' : '';
+    return `${prefix}${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   // Determine next expected speech based on true counts
   const { nextSpeechDisplay, nextSpeechSide } = useMemo(() => {
@@ -278,6 +334,13 @@ export const PODashboard: React.FC = () => {
     setStandingIds(new Set());
   };
 
+  const handleClearSpeaker = async () => {
+    if (!room) return;
+    setRoom((prev) => prev ? { ...prev, current_speaker_id: null } : prev);
+    await chamberService.updateRoom(room.id, { current_speaker_id: null });
+    showToast('Floor yielded / speaker cleared');
+  };
+
   // Passcode verification
   const handleVerifyPasscode = (e: React.FormEvent) => {
     e.preventDefault();
@@ -298,7 +361,6 @@ export const PODashboard: React.FC = () => {
     const updated = await chamberService.updateRoom(room.id, { status });
     if (updated) {
       setRoom(updated);
-      showToast(`Chamber status set to ${status.replace('_', ' ').toUpperCase()}`);
     }
   };
 
@@ -349,13 +411,17 @@ export const PODashboard: React.FC = () => {
       if (created.length > 0) {
         await chamberService.setActiveBill(room, created[0]);
       }
-      const docketSummary = created.map((b) => b.bill_number).join(' → ');
-      await chamberService.logCustomEvent(
-        room.id,
-        '00000000-0000-0000-0000-000000000000',
-        'motion_vote',
-        `Docket Order Adopted: ${docketSummary}`
-      );
+      const docketSummary = created.map((b) => b.title || b.bill_number).join(' → ');
+      try {
+        await chamberService.logCustomEvent(
+          room.id,
+          '00000000-0000-0000-0000-000000000000',
+          'motion_vote',
+          `Docket Order Adopted: ${docketSummary}`
+        );
+      } catch {
+        // silent logging fallback
+      }
       const [updatedRoom, freshBills, events] = await Promise.all([
         chamberService.getRoomByCode(room.code),
         chamberService.getBills(room.id),
@@ -369,7 +435,8 @@ export const PODashboard: React.FC = () => {
       setShowDocketNominationModal(false);
       showToast(`Round started with docket: ${docketSummary}`);
     } catch (err: unknown) {
-      showToast(err instanceof Error ? err.message : 'Error adopting docket');
+      console.warn('Docket adoption error:', err);
+      setShowDocketNominationModal(false);
     }
   };
 
@@ -461,6 +528,13 @@ export const PODashboard: React.FC = () => {
           ? 'Authorship'
           : 'Affirmative';
         showToast(`Recognized ${rep.name} for ${getOrdinal(nextNum)} ${sideLabel}`);
+
+        setTimerConfig({
+          mode: 'speech',
+          duration: 190,
+          questionerName: null,
+        });
+        setTimerAutoTrigger((prev) => prev + 1);
       } else if (eventType === 'question') {
         // Every question starts a fresh 30-second CX timer automatically.
         const cxDuration = 30;
@@ -663,7 +737,7 @@ export const PODashboard: React.FC = () => {
     const updated = await chamberService.updateChamberSettings(room.id, settings);
     if (updated) {
       setRoom(updated);
-      showToast('Chamber settings updated & synchronized');
+      showToast('Settings saved');
     }
   };
 
@@ -823,8 +897,8 @@ export const PODashboard: React.FC = () => {
             onClick={() => navigate('/')}
             className="flex items-center cursor-pointer group"
           >
-            <span className="font-mono font-bold text-sm tracking-wider uppercase text-[#0A1128] group-hover:opacity-80 transition-opacity">
-              better<span className="text-emerald-500" style={{ color: '#10b981' }}>po</span>
+            <span className="font-po-ui font-bold text-[17px] tracking-tight lowercase text-slate-900 group-hover:opacity-80 transition-opacity select-none">
+              better<span className="font-extrabold text-emerald-500" style={{ color: '#10b981' }}>po</span>
             </span>
           </div>
 
@@ -908,7 +982,11 @@ export const PODashboard: React.FC = () => {
       <section className="bg-white border-b border-slate-200/60 px-4 sm:px-6 py-3.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)]">
         <div className="flex items-center gap-3 sm:gap-4 flex-wrap">
           <h1 className="text-lg sm:text-xl font-bold font-po-ui text-slate-900 tracking-tight">
-            {activeBill ? `${activeBill.bill_number}: ${activeBill.title}` : room.current_legislation || 'General Orders / Open Floor'}
+            {activeBill
+              ? (activeBill.title || activeBill.bill_number)
+              : (room.current_legislation
+                  ? room.current_legislation.replace(/^(bill\s*\d+|res\s*\d+)[:.-]?\s*/i, '')
+                  : 'General Orders / Open Floor')}
           </h1>
 
           <div className="flex items-center gap-1.5 pl-3 sm:pl-4 border-l border-slate-200">
@@ -923,21 +1001,6 @@ export const PODashboard: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Docket nomination banner at start of round when no docket is set */}
-      {bills.length === 0 && (
-        <section className="bg-emerald-50/80 border-b border-emerald-200 px-4 sm:px-6 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-mono text-emerald-950">
-          <div className="flex items-center gap-2">
-            <span>Chamber docket is currently open for nominations.</span>
-          </div>
-          <button
-            onClick={() => setShowDocketNominationModal(true)}
-            className="px-3.5 py-1.5 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-bold transition-all shadow-xs shrink-0 active:scale-[0.98]"
-          >
-            Open the floor for docket nomination
-          </button>
-        </section>
-      )}
 
       {/* ========================================================
           ACTIVE AMENDMENT WARNING BANNER (IF APPLICABLE)
@@ -977,7 +1040,7 @@ export const PODashboard: React.FC = () => {
         <section className="lg:col-span-8 space-y-5 flex flex-col">
           
           {/* Bento Card 1: Chamber Seating & Floor Grid */}
-          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-4">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-4">
             {/* Floor Grid Top Bar */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
               <div>
@@ -1002,10 +1065,11 @@ export const PODashboard: React.FC = () => {
               <FloorGrid
                 representatives={representatives}
                 standingIds={standingIds}
+                currentSpeakerId={room.current_speaker_id}
                 onToggleStanding={handleToggleStanding}
                 onClearStanding={handleClearStanding}
                 onToggleActive={(rep) =>
-                  chamberService.toggleRepresentativeActive(rep.id, rep.active)
+                  chamberService.toggleRepresentativeActive(rep.id, rep.active !== false)
                 }
                 onTogglePresence={handleTogglePresence}
                 searchQuery={searchQuery}
@@ -1017,7 +1081,7 @@ export const PODashboard: React.FC = () => {
           </div>
 
           {/* Bento Card 2: Chronological Chamber Audit Log */}
-          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-3">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3">
             <div className="flex items-center justify-between pb-2 border-b border-slate-100">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-po-ui font-bold text-slate-900">
@@ -1105,7 +1169,7 @@ export const PODashboard: React.FC = () => {
         <section className="lg:col-span-4 space-y-5 flex flex-col">
           
           {/* Bento Card 3: Master Speech Timer Card */}
-          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)]">
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs">
             {/* Embedded Synchronized Timer */}
             <ChamberTimer
               roomCode={room.code}
@@ -1114,154 +1178,236 @@ export const PODashboard: React.FC = () => {
               floorMode={floorMode}
               speakerId={activeSpeaker?.id || null}
               speakerName={activeSpeaker?.name || null}
-              onClearSpeaker={() =>
-                chamberService.updateRoom(room.id, { current_speaker_id: null })
-              }
+              onClearSpeaker={handleClearSpeaker}
               autoStartTrigger={timerAutoTrigger}
               autoStartConfig={timerConfig}
               questionerName={timerConfig.mode === 'question' ? timerConfig.questionerName : null}
               onRecessChange={(isRecess) =>
                 handleStatusChange(isRecess ? 'recess' : 'in_session')
               }
+              onTimerTick={(secs, mode) => {
+                setCurrentTimerSeconds(secs);
+                setCurrentTimerMode(mode);
+              }}
             />
           </div>
 
-          {/* Bento Card 4: Recency & Precedence Queue Rankings Card */}
-          <div className="bg-white border border-slate-200/70 rounded-[22px] p-4 sm:p-5 shadow-[0_2px_12px_rgba(0,0,0,0.02)] space-y-3.5">
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-              <span className="text-xs font-mono font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Award className="w-4 h-4 text-[#006948]" />
-                Precedence & Recency Queue
-              </span>
-              <span className="text-[11px] font-mono text-slate-400">
-                Mode: <strong className="text-slate-700 capitalize">{floorMode}</strong>
-              </span>
-            </div>
-
-            {/* Target Winner / Highest Precedence */}
-            {winner ? (
-              <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/70 border border-slate-200/60 shadow-xs space-y-3">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight truncate" title={winner.name}>
-                      {extractLastName(winner.name)}
-                    </span>
-                  </div>
-                  {winner.school && (
-                    <span className="shrink-0 text-xs font-mono text-slate-500 font-medium">
-                      {winner.school}
-                    </span>
+          {/* Bento Card 4: Speaker Card (when speaking) OR Precedence Queue (when idle) */}
+          <div className="bg-white border border-slate-200/80 rounded-2xl p-4 sm:p-5 shadow-xs space-y-3.5">
+            {activeSpeaker ? (
+              <div className="space-y-3">
+                {/* Speaker Card: Matches user screenshot */}
+                <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-center min-h-[88px] space-y-1 shadow-xs">
+                  <h4 className="font-bold text-slate-900 text-lg sm:text-xl leading-snug">
+                    {activeSpeaker.name.startsWith('Senator') ? activeSpeaker.name : `Senator ${activeSpeaker.name}`}
+                  </h4>
+                  {currentSpeechText && (
+                    <p className="font-mono text-xs sm:text-sm font-semibold text-emerald-800">
+                      {currentSpeechText}
+                    </p>
                   )}
+                  {/* Plain text count: NOT in a box */}
+                  <div className="text-xs font-mono text-slate-400 pt-0.5">
+                    {activeSpeaker.speeches_count} sp • {activeSpeaker.questions_count} q
+                    {activeSpeaker.school && ` • ${activeSpeaker.school}`}
+                  </div>
                 </div>
 
-                <div className="text-xs font-mono text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/60 flex items-center justify-between">
-                  <span>{formatPriorityReason(winner, floorMode)}</span>
-                  <span className="text-slate-400 text-[11px] font-medium">{winner.speeches_count} Speeches • {winner.questions_count} Questions</span>
-                </div>
+                {/* If they are getting questioned, questioner card appears directly beneath (matches user screenshot) */}
+                {activeQuestioner && (
+                  <div className="animate-fade-in p-3.5 sm:p-4 rounded-xl bg-sky-50/95 border-2 border-sky-300 text-slate-900 shadow-sm flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800 mb-0.5">
+                        Being Questioned By
+                      </div>
+                      <div className="font-bold text-base sm:text-lg text-slate-900 truncate">
+                        {activeQuestioner.name.startsWith('Senator') ? activeQuestioner.name : `Senator ${activeQuestioner.name}`}
+                      </div>
+                    </div>
 
-                {isTie && (
-                  <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-mono flex items-center gap-2">
-                    <span className="shrink-0">⚠️</span>
-                    <span>Tied precedence with {tiedCandidates.length - 1} other standing debater(s). Resolving alphabetically.</span>
+                    <div className="shrink-0 text-right">
+                      <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-700">
+                        Question Time
+                      </div>
+                      <div className="font-mono font-black text-xl sm:text-2xl text-sky-950 tracking-tight leading-none mt-0.5">
+                        {formatTimerClock(currentTimerSeconds)}
+                      </div>
+                    </div>
                   </div>
                 )}
 
-                {/* Instant Award Action Buttons */}
-                {floorMode === 'question' ? (
-                  <div className="space-y-2 pt-1 font-mono text-xs">
-                    <button
-                      onClick={() => handleAwardAction(winner, 'question')}
-                      className="w-full py-2.5 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs"
-                    >
-                      Give Question (30s CX)
-                    </button>
-                    <div className="grid grid-cols-3 gap-2">
-                      <button
-                        onClick={() => handleAwardAction(winner, 'speech_aff')}
-                        className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
-                      >
-                        {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
-                      </button>
-                      <button
-                        onClick={() => handleAwardAction(winner, 'speech_neg')}
-                        className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
-                      >
-                        {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
-                      </button>
-                      <button
-                        onClick={() => handleAwardAction(winner, 'speech_author')}
-                        className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
-                      >
-                        Author
-                      </button>
+                {/* Standing candidate if senators stand while speaker is on floor (e.g. for CX) */}
+                {winner && (
+                  <div className="pt-2 border-t border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 font-bold uppercase tracking-wider">
+                      <span>Standing in Chamber</span>
+                      <span className="text-slate-700 font-semibold">{extractLastName(winner.name)}</span>
                     </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-xs">
-                    <button
-                      onClick={() => handleAwardAction(winner, 'speech_aff')}
-                      className="py-2.5 px-3 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-[#006948] border border-emerald-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
-                    >
-                      Give {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
-                    </button>
-                    <button
-                      onClick={() => handleAwardAction(winner, 'speech_neg')}
-                      className="py-2.5 px-3 rounded-xl font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
-                    >
-                      Give {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
-                    </button>
-                    <button
-                      onClick={() => handleAwardAction(winner, 'speech_author')}
-                      className="py-2.5 px-3 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px] whitespace-nowrap"
-                    >
-                      Author / Sponsor
-                    </button>
-                    <button
-                      onClick={() => handleAwardAction(winner, 'question')}
-                      className="py-2.5 px-3 rounded-xl font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
-                    >
-                      Give Question (30s)
-                    </button>
+
+                    {floorMode === 'question' ? (
+                      <button
+                        onClick={() => handleAwardAction(winner, 'question')}
+                        className="w-full py-2.5 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs font-mono"
+                      >
+                        Give Question (30s CX)
+                      </button>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 pt-0.5 font-mono text-xs">
+                        <button
+                          onClick={() => handleAwardAction(winner, 'speech_aff')}
+                          className="py-2.5 px-3 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-[#006948] border border-emerald-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                        >
+                          Give {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
+                        </button>
+                        <button
+                          onClick={() => handleAwardAction(winner, 'speech_neg')}
+                          className="py-2.5 px-3 rounded-xl font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                        >
+                          Give {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             ) : (
-              <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center font-mono text-xs text-slate-500">
-                Tap 1 or more standing senators on the floor to rank them by precedence.
-              </div>
-            )}
-
-            {/* Standing Queue Runner-ups (If multiple senators are standing) */}
-            {standingQueue.length > 1 && (
-              <div className="space-y-1.5 pt-1">
-                <div className="text-[11px] font-mono text-slate-400 uppercase font-bold tracking-wider">
-                  Remaining Standing Queue ({standingQueue.length - 1})
+              <>
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <span className="text-xs font-mono font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Award className="w-4 h-4 text-[#006948]" />
+                    Precedence & Recency Queue
+                  </span>
+                  <span className="text-[11px] font-mono text-slate-400">
+                    Mode: <strong className="text-slate-700 capitalize">{floorMode}</strong>
+                  </span>
                 </div>
-                <div className="max-h-36 overflow-y-auto space-y-1 pr-1 font-mono text-xs">
-                  {standingQueue.slice(1).map((rep, idx) => (
-                    <div
-                      key={rep.id}
-                      className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <span className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 font-bold text-[10px] flex items-center justify-center">
-                          #{idx + 2}
-                        </span>
-                        <span className="font-bold text-slate-800 truncate" title={rep.name}>{extractLastName(rep.name)}</span>
-                        <span className="text-[10px] text-slate-400">
-                          ({rep.speeches_count} sp, {rep.questions_count} q)
+
+                {/* Target Winner / Highest Precedence */}
+                {winner ? (
+                  <div className="p-4 sm:p-5 rounded-2xl bg-slate-50/70 border border-slate-200/60 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <span className="font-bold text-lg sm:text-xl text-slate-900 tracking-tight truncate" title={winner.name}>
+                          {extractLastName(winner.name)}
                         </span>
                       </div>
-                      <button
-                        onClick={() => handleAwardAction(rep, floorMode === 'speech' ? 'speech_aff' : 'question')}
-                        className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold"
-                      >
-                        Recognize
-                      </button>
+                      {winner.school && (
+                        <span className="shrink-0 text-xs font-mono text-slate-500 font-medium">
+                          {winner.school}
+                        </span>
+                      )}
                     </div>
-                  ))}
-                </div>
-              </div>
+
+                    <div className="text-xs font-mono text-slate-600 bg-white p-2.5 rounded-xl border border-slate-200/60 flex items-center justify-between">
+                      <span>{formatPriorityReason(winner, floorMode)}</span>
+                      <span className="text-slate-400 text-[11px] font-medium">{winner.speeches_count} Speeches • {winner.questions_count} Questions</span>
+                    </div>
+
+                    {isTie && (
+                      <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-200/80 text-amber-800 text-xs font-mono flex items-center gap-2">
+                        <span className="shrink-0">⚠️</span>
+                        <span>Tied precedence with {tiedCandidates.length - 1} other standing debater(s). Resolving alphabetically.</span>
+                      </div>
+                    )}
+
+                    {/* Instant Award Action Buttons */}
+                    {floorMode === 'question' ? (
+                      <div className="space-y-2 pt-1 font-mono text-xs">
+                        <button
+                          onClick={() => handleAwardAction(winner, 'question')}
+                          className="w-full py-2.5 px-4 rounded-xl font-bold bg-[#006948] hover:bg-[#005137] text-white shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-xs"
+                        >
+                          Give Question (30s CX)
+                        </button>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={() => handleAwardAction(winner, 'speech_aff')}
+                            className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
+                          >
+                            {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
+                          </button>
+                          <button
+                            onClick={() => handleAwardAction(winner, 'speech_neg')}
+                            className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
+                          >
+                            {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
+                          </button>
+                          <button
+                            onClick={() => handleAwardAction(winner, 'speech_author')}
+                            className="py-2 px-2 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 transition-all text-[10px] uppercase"
+                          >
+                            Author
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-2 pt-1 font-mono text-xs">
+                        <button
+                          onClick={() => handleAwardAction(winner, 'speech_aff')}
+                          className="py-2.5 px-3 rounded-xl font-bold bg-emerald-50 hover:bg-emerald-100 text-[#006948] border border-emerald-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                        >
+                          Give {getOrdinal(speechAnalysis.nextExpectedAffNumber)} Aff
+                        </button>
+                        <button
+                          onClick={() => handleAwardAction(winner, 'speech_neg')}
+                          className="py-2.5 px-3 rounded-xl font-bold bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                        >
+                          Give {getOrdinal(speechAnalysis.nextExpectedNegNumber)} Neg
+                        </button>
+                        <button
+                          onClick={() => handleAwardAction(winner, 'speech_author')}
+                          className="py-2.5 px-3 rounded-xl font-bold bg-slate-50 hover:bg-slate-100 text-slate-800 border border-slate-300 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px] whitespace-nowrap"
+                        >
+                          Author / Sponsor
+                        </button>
+                        <button
+                          onClick={() => handleAwardAction(winner, 'question')}
+                          className="py-2.5 px-3 rounded-xl font-bold bg-sky-50 hover:bg-sky-100 text-sky-800 border border-sky-300/80 shadow-xs transition-all active:scale-[0.98] flex items-center justify-center uppercase tracking-wider text-[11px]"
+                        >
+                          Give Question (30s)
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 text-center font-mono text-xs text-slate-500">
+                    Tap 1 or more standing senators on the floor to rank them by precedence.
+                  </div>
+                )}
+
+                {/* Standing Queue Runner-ups (If multiple senators are standing) */}
+                {standingQueue.length > 1 && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="text-[11px] font-mono text-slate-400 uppercase font-bold tracking-wider">
+                      Remaining Standing Queue ({standingQueue.length - 1})
+                    </div>
+                    <div className="max-h-36 overflow-y-auto space-y-1 pr-1 font-mono text-xs">
+                      {standingQueue.slice(1).map((rep, idx) => (
+                        <div
+                          key={rep.id}
+                          className="p-2 rounded-lg bg-slate-50 border border-slate-200 flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <span className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 font-bold text-[10px] flex items-center justify-center">
+                              #{idx + 2}
+                            </span>
+                            <span className="font-bold text-slate-800 truncate" title={rep.name}>{extractLastName(rep.name)}</span>
+                            <span className="text-[10px] text-slate-400">
+                              ({rep.speeches_count} sp, {rep.questions_count} q)
+                            </span>
+                          </div>
+                          <button
+                            onClick={() => handleAwardAction(rep, floorMode === 'speech' ? 'speech_aff' : 'question')}
+                            className="px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 text-[10px] font-bold"
+                          >
+                            Recognize
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
 

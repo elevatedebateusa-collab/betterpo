@@ -369,7 +369,11 @@ export const chamberService = {
       const created = (data || []) as Bill[];
       if (created.length > 0) {
         this.saveDocketOrder(roomId, created.map((b) => b.id));
-        await this.setActiveBill({ id: roomId } as Room, created[0]);
+        try {
+          await this.setActiveBill({ id: roomId } as Room, created[0]);
+        } catch {
+          // silent fallback if active bill set by caller
+        }
       }
       return created;
     } else {
@@ -415,7 +419,7 @@ export const chamberService = {
   },
 
   async setActiveBill(room: Room, bill: Bill): Promise<{ room: Room; bill: Bill }> {
-    const billLegislation = `${bill.bill_number}: ${bill.title}`;
+    const billLegislation = bill.title || bill.bill_number;
 
     if (isSupabaseConfigured && supabase) {
       await supabase
@@ -716,19 +720,39 @@ export const chamberService = {
     description: string
   ): Promise<RoundEvent> {
     if (isSupabaseConfigured && supabase) {
+      const validRepId = representativeId && representativeId !== '00000000-0000-0000-0000-000000000000'
+        ? representativeId
+        : null;
+
+      const insertPayload: Record<string, unknown> = {
+        room_id: roomId,
+        event_type: eventType,
+        sequence_number: 0,
+        legislation: description,
+      };
+      if (validRepId) {
+        insertPayload.representative_id = validRepId;
+      }
+
       const { data, error } = await supabase
         .from('round_events')
-        .insert({
+        .insert(insertPayload)
+        .select()
+        .single();
+
+      if (error) {
+        console.warn('logCustomEvent error:', error);
+        return {
+          id: 'event_' + Math.random().toString(36).substring(2, 9),
           room_id: roomId,
           representative_id: representativeId,
           event_type: eventType,
           sequence_number: 0,
           legislation: description,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
+          created_at: new Date().toISOString(),
+          representative_name: 'Chamber Action',
+        };
+      }
       return {
         ...(data as RoundEvent),
         representative_name: 'Chamber Action',

@@ -59,42 +59,17 @@ export const ChamberLanding: React.FC = () => {
 
   // Choreography sequence
   useEffect(() => {
-    // 1. Audio thud right at gavel impact (at 0.60s)
-    const audioTimer = setTimeout(() => {
-      try {
-        const AudioCtx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-        if (AudioCtx) {
-          const ctx = new AudioCtx();
-          if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(120, ctx.currentTime);
-          osc.frequency.exponentialRampToValueAtTime(32, ctx.currentTime + 0.14);
-          gain.gain.setValueAtTime(0.35, ctx.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.16);
-          osc.connect(gain);
-          gain.connect(ctx.destination);
-          osc.start();
-          osc.stop(ctx.currentTime + 0.18);
-        }
-      } catch {
-        // audio silent fallback
-      }
-    }, 600);
-
-    // 2. Logo slides out quickly and settles, then glides up to title position at 1.8s
+    // 1. Logo slides out quickly and settles, then glides up to title position at 1.8s
     const moveTimer = setTimeout(() => {
       setAnimStage('settled_title');
     }, 1800);
 
-    // 3. Options pop in cleanly underneath the logo title at 2.2s
+    // 2. Options pop in cleanly underneath the logo title at 2.2s
     const popOptionsTimer = setTimeout(() => {
       setAnimStage('options_visible');
     }, 2200);
 
     return () => {
-      clearTimeout(audioTimer);
       clearTimeout(moveTimer);
       clearTimeout(popOptionsTimer);
     };
@@ -142,16 +117,6 @@ export const ChamberLanding: React.FC = () => {
       recency: nextRecency,
     };
     setSenatorsList((prev) => [...prev, newSen]);
-  };
-
-  const handleAutoNumberSenators = () => {
-    setSenatorsList((prev) =>
-      prev.map((s, idx) => ({ ...s, recency: idx + 1 }))
-    );
-  };
-
-  const handleSortSenatorsByRecency = () => {
-    setSenatorsList((prev) => [...prev].sort((a, b) => a.recency - b.recency));
   };
 
   // Handle Spectator Join
@@ -256,8 +221,8 @@ export const ChamberLanding: React.FC = () => {
             }}
             className="flex items-center cursor-pointer group"
           >
-            <span className="font-mono font-bold text-sm tracking-wider uppercase text-[#0A1128] group-hover:opacity-80 transition-opacity">
-              better<span className="text-emerald-500" style={{ color: '#10b981' }}>po</span>
+            <span className="font-po-ui font-bold text-[17px] tracking-tight lowercase text-slate-900 group-hover:opacity-80 transition-opacity select-none">
+              better<span className="font-extrabold text-emerald-500" style={{ color: '#10b981' }}>po</span>
             </span>
           </div>
         </div>
@@ -304,7 +269,7 @@ export const ChamberLanding: React.FC = () => {
                   {/* Card 1: Presiding Officer */}
                   <div
                     onClick={() => setSelectedRole('po')}
-                    className="group relative rounded-[28px] p-8 sm:p-9 bg-white border border-slate-100 shadow-[0_10px_35px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_45px_rgba(0,0,0,0.07)] transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                    className="group relative rounded-2xl p-8 sm:p-9 bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
                     <div>
                       <h3 className="font-bold text-2xl text-slate-900 tracking-tight">Presiding Officer</h3>
@@ -327,7 +292,7 @@ export const ChamberLanding: React.FC = () => {
                   {/* Card 2: Competitor */}
                   <div
                     onClick={() => setSelectedRole('spectator')}
-                    className="group relative rounded-[28px] p-8 sm:p-9 bg-white border border-slate-100 shadow-[0_10px_35px_rgba(0,0,0,0.04)] hover:shadow-[0_16px_45px_rgba(0,0,0,0.07)] transition-all duration-300 cursor-pointer flex flex-col justify-between"
+                    className="group relative rounded-2xl p-8 sm:p-9 bg-white border border-slate-200/80 shadow-xs hover:shadow-md transition-all duration-300 cursor-pointer flex flex-col justify-between"
                   >
                     <div>
                       <h3 className="font-bold text-2xl text-slate-900 tracking-tight">Competitor</h3>
@@ -354,7 +319,7 @@ export const ChamberLanding: React.FC = () => {
             {/* SCREEN 2: SPECTATOR JOIN FORM */}
             {selectedRole === 'spectator' && (
               <div className="max-w-md mx-auto w-full animate-fadeIn">
-                <div className="bg-white border border-slate-100 rounded-[28px] p-8 sm:p-10 space-y-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)] text-center">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-8 sm:p-10 space-y-6 shadow-xs text-center">
                   <div className="flex items-center justify-start">
                     <EclipseButton
                       type="button"
@@ -472,7 +437,7 @@ export const ChamberLanding: React.FC = () => {
                           spellCheck={false}
                           value={chamberName}
                           onChange={(e) => setChamberName(e.target.value)}
-                          className="w-full bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-[6px] px-3.5 py-2 text-sm font-sans text-slate-900 placeholder:text-slate-400 focus:outline-none transition-colors"
+                          className="w-full bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-3.5 py-2 text-sm font-sans text-slate-900 placeholder:text-slate-400 focus:outline-none transition-colors"
                         />
                       </div>
 
@@ -496,12 +461,12 @@ export const ChamberLanding: React.FC = () => {
                             spellCheck={false}
                             value={adminPin}
                             onChange={(e) => setAdminPin(e.target.value)}
-                            className="w-full bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-[6px] px-3.5 py-2 text-sm font-sans text-slate-900 placeholder:text-slate-400 focus:outline-none transition-colors"
+                            className="w-full bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-3.5 py-2 text-sm font-sans text-slate-900 placeholder:text-slate-400 focus:outline-none transition-colors"
                           />
                           <button
                             type="button"
                             onClick={() => setAdminPin(generateRandomPin())}
-                            className="absolute right-2 top-1.5 h-7 px-2.5 text-[11px] font-medium rounded-[4px] border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
+                            className="absolute right-2 top-1.5 h-7 px-2.5 text-[11px] font-medium rounded-md border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 transition-colors cursor-pointer"
                           >
                             Randomize
                           </button>
@@ -526,49 +491,30 @@ export const ChamberLanding: React.FC = () => {
                           autoComplete="off"
                           autoCorrect="off"
                           spellCheck={false}
-                          className="w-full bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-[6px] px-3.5 py-2 text-xs font-sans text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none"
+                          className="w-full bg-white border border-slate-200 focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 rounded-xl px-3.5 py-2 text-xs font-sans text-slate-900 placeholder:text-slate-400 focus:outline-none resize-none"
                         />
                       </div>
 
                       {/* Interactive Recency Order Confirmation Card */}
                       {senatorsList.length > 0 && (
-                        <div className="p-4 rounded-[8px] bg-slate-50/80 border border-slate-200 space-y-3">
+                        <div className="p-4 rounded-xl bg-slate-50/80 border border-slate-200 space-y-3">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-200/80 pb-3">
                             <div>
                               <div className="flex items-center gap-2">
                                 <span className="font-field-header text-sm font-semibold text-slate-900 tracking-tight">
                                   Confirm Speaker Recency Order
                                 </span>
-                                <span className="text-[11px] font-sans font-semibold px-2 py-0.5 rounded-md bg-emerald-500/15 text-emerald-700">
-                                  {senatorsList.length} Debaters
+                                <span className="text-xs font-sans text-slate-500 font-medium">
+                                  • {senatorsList.length} Debaters
                                 </span>
                               </div>
-                              <p className="text-[11px] text-slate-500 font-sans mt-0.5">
-                                Tabroom recency detected. Each speaker is assigned an initial speaking order.
-                              </p>
                             </div>
 
                             <div className="flex items-center gap-1.5 flex-wrap">
                               <button
                                 type="button"
-                                onClick={handleAutoNumberSenators}
-                                className="h-7 px-2.5 text-xs font-medium rounded-[6px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
-                                title="Reset numbers to 1..N"
-                              >
-                                Auto-Number
-                              </button>
-                              <button
-                                type="button"
-                                onClick={handleSortSenatorsByRecency}
-                                className="h-7 px-2.5 text-xs font-medium rounded-[6px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
-                                title="Sort list by recency order"
-                              >
-                                Sort Order
-                              </button>
-                              <button
-                                type="button"
                                 onClick={handleAddSenator}
-                                className="h-7 px-2.5 text-xs font-medium rounded-[6px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
+                                className="h-7 px-2.5 text-xs font-medium rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 transition-colors cursor-pointer"
                               >
                                 + Add Senator
                               </button>
@@ -579,7 +525,7 @@ export const ChamberLanding: React.FC = () => {
                             {senatorsList.map((senator, idx) => (
                               <div
                                 key={senator.id || idx}
-                                className="flex items-center gap-2 p-2 rounded-[6px] bg-white border border-slate-200 hover:border-slate-300 transition-colors"
+                                className="flex items-center gap-2 p-2 rounded-lg bg-white border border-slate-200 hover:border-slate-300 transition-colors"
                               >
                                 {/* Number indicator */}
                                 <div className="flex items-center gap-1 shrink-0">
@@ -645,14 +591,14 @@ export const ChamberLanding: React.FC = () => {
                             setCreateError(null);
                             setCreatedChamberInfo(null);
                           }}
-                          className="h-9 px-3.5 text-xs font-medium rounded-[6px] text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
+                          className="h-9 px-3.5 text-xs font-medium rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
                         >
                           Cancel
                         </button>
                         <button
                           type="submit"
                           disabled={isCreatingChamber || !chamberName.trim()}
-                          className="h-9 px-4 text-xs font-medium rounded-[6px] bg-[#10b981] hover:bg-[#059669] active:bg-[#047857] disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer font-sans"
+                          className="h-9 px-4 text-xs font-medium rounded-xl bg-[#10b981] hover:bg-[#059669] active:bg-[#047857] disabled:opacity-50 disabled:cursor-not-allowed text-white shadow-xs transition-colors inline-flex items-center gap-2 cursor-pointer font-sans"
                         >
                           {isCreatingChamber ? (
                             <>
@@ -673,7 +619,7 @@ export const ChamberLanding: React.FC = () => {
             {/* SCREEN 4: ROOM READY & LARGE ROOM CODE DISPLAY */}
             {selectedRole === 'po' && createdChamberInfo && (
               <div className="max-w-lg mx-auto w-full animate-fadeIn">
-                <div className="bg-white border border-slate-100 rounded-[28px] p-8 sm:p-10 space-y-6 shadow-[0_10px_35px_rgba(0,0,0,0.04)] text-center">
+                <div className="bg-white border border-slate-200/80 rounded-2xl p-8 sm:p-10 space-y-6 shadow-xs text-center">
                   <div>
                     <h2 className="font-sans text-2xl font-bold uppercase text-slate-900 tracking-tight">
                       {createdChamberInfo.chamberName}

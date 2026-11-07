@@ -15,7 +15,7 @@ interface RecencyLadderProps {
 export const RecencyLadder: React.FC<RecencyLadderProps> = ({
   representatives,
   standingIds = new Set(),
-  currentSpeakerId = null,
+
   onSelectRep,
   activeMode = 'speech',
   onModeChange,
@@ -25,12 +25,12 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
   const setMode = onModeChange || setLocalMode;
 
   const sortedReps = sortRepresentatives(
-    representatives.filter((r) => r.active),
+    representatives.filter((r) => r.active !== false),
     mode
   );
 
   return (
-    <div className="rounded-[22px] bg-white border border-slate-200/70 shadow-[0_2px_12px_rgba(0,0,0,0.02)] flex flex-col h-full min-h-0 overflow-hidden font-sans">
+    <div className="rounded-2xl bg-white border border-slate-200/80 shadow-xs flex flex-col h-full min-h-0 overflow-hidden font-sans">
       {/* Header */}
       <div className="px-3.5 py-2.5 border-b border-slate-100 flex items-center justify-between bg-white">
         <span className="font-po-ui font-semibold text-xs text-slate-800 tracking-wide uppercase">
@@ -62,7 +62,7 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
         ) : (
           sortedReps.map((rep) => {
             const isStanding = standingIds.has(rep.id);
-            const isSpeaking = currentSpeakerId === rep.id;
+
             const isPresent = rep.is_present !== false;
             const isTopRank = rep.rank === 1;
 
@@ -73,8 +73,6 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
                 className={`px-3 py-2 grid grid-cols-12 gap-1 items-center transition-colors cursor-pointer ${
                   !isPresent
                     ? 'opacity-40 bg-slate-50 line-through'
-                    : isSpeaking
-                    ? 'bg-amber-50/80 border-l-2 border-amber-500 font-semibold text-slate-900'
                     : isTopRank
                     ? 'bg-emerald-50/60 border-l-2 border-emerald-500 font-semibold'
                     : isStanding
@@ -83,7 +81,7 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
                 }`}
               >
                 {/* Rank */}
-                <div className={`col-span-2 font-mono text-[11px] ${isTopRank ? 'text-emerald-700 font-bold' : isSpeaking ? 'text-amber-700 font-bold' : 'text-slate-400'}`}>
+                <div className={`col-span-2 font-mono text-[11px] ${isTopRank ? 'text-emerald-700 font-bold' : 'text-slate-400'}`}>
                   #{rep.rank}
                 </div>
 
@@ -127,9 +125,7 @@ export const RecencyLadder: React.FC<RecencyLadderProps> = ({
 
                 {/* Stand Indicator */}
                 <div className="col-span-1 text-center font-mono text-[10px]">
-                  {isSpeaking ? (
-                    <span className="font-bold text-amber-600">SPK</span>
-                  ) : isStanding ? (
+                  {isStanding ? (
                     <span className="font-bold text-slate-900">STD</span>
                   ) : (
                     <span className="text-slate-300">-</span>

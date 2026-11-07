@@ -2,7 +2,6 @@ import { SelectionGroup } from '@/components/ui/selection-group';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
-  Gavel, 
   Share2, 
   Lock, 
   AlertCircle,
@@ -258,7 +257,7 @@ export const SpectatorBoard: React.FC = () => {
 
   // Quorum Calculations
   const quorumStats = useMemo(() => {
-    const active = representatives.filter((r) => r.active);
+    const active = representatives.filter((r) => r.active !== false);
     const present = active.filter((r) => r.is_present !== false).length;
     const total = active.length;
     const simpleMajority = Math.floor(present / 2) + 1;
@@ -290,7 +289,7 @@ export const SpectatorBoard: React.FC = () => {
 
   // Pure NSDA Sorted Recency Ladder
   const sortedLadder = useMemo(() => {
-    const activeReps = representatives.filter((r) => r.active);
+    const activeReps = representatives.filter((r) => r.active !== false);
     return sortRepresentatives(activeReps, ladderMode);
   }, [representatives, ladderMode]);
 
@@ -350,7 +349,7 @@ export const SpectatorBoard: React.FC = () => {
       <div className="min-h-screen bg-white flex items-center justify-center p-4">
         <div className="max-w-md w-full bg-white border border-slate-200 rounded-2xl p-6 text-center shadow-[0_1px_4px_rgba(0,0,0,0.03)]">
           <AlertCircle className="w-10 h-10 text-rose-500 mx-auto mb-3" />
-          <h2 className="text-xl font-serif-editorial font-bold text-slate-900 mb-2">Chamber Not Found</h2>
+          <h2 className="text-xl font-bold text-slate-900 mb-2">Chamber Not Found</h2>
           <p className="text-xs font-mono text-slate-500 mb-6">{error || 'This chamber does not exist.'}</p>
           <button
             onClick={() => navigate('/')}
@@ -368,16 +367,17 @@ export const SpectatorBoard: React.FC = () => {
       {/* Top Navigation Bar: Super Minimalist Swiss Editorial Bar */}
       <header className="border-b border-slate-200/90 bg-white/95 backdrop-blur-md sticky top-0 z-30 px-4 h-14 flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 truncate">
-          <button
+          <div 
             onClick={() => navigate('/')}
-            className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors shrink-0"
-            title="Return Home"
+            className="flex items-center cursor-pointer group shrink-0"
           >
-            <Gavel className="w-4 h-4" />
-          </button>
-          <div className="truncate">
+            <span className="font-po-ui font-bold text-[17px] tracking-tight lowercase text-slate-900 group-hover:opacity-80 transition-opacity select-none">
+              better<span className="font-extrabold text-emerald-500" style={{ color: '#10b981' }}>po</span>
+            </span>
+          </div>
+          <div className="truncate pl-2 border-l border-slate-200">
             <div className="flex items-center gap-2">
-              <h1 className="font-serif-editorial font-bold text-slate-900 text-base sm:text-lg truncate max-w-[200px] sm:max-w-md">
+              <h1 className="font-bold text-slate-900 text-base sm:text-lg truncate max-w-[200px] sm:max-w-md">
                 {room.name}
               </h1>
               <span className="text-xs font-mono font-bold text-slate-500 uppercase shrink-0">
@@ -435,13 +435,11 @@ export const SpectatorBoard: React.FC = () => {
           
           {/* Top Row: Active Legislation Title */}
           <div className="pb-3 border-b border-slate-100">
-            <div className="text-base sm:text-xl font-serif-editorial font-bold text-slate-900">
+            <div className="text-base sm:text-xl font-bold text-slate-900">
               {activeBill ? (
-                <span>
-                  <span className="text-emerald-700">{activeBill.bill_number}:</span> {activeBill.title}
-                </span>
+                <span>{activeBill.title || activeBill.bill_number}</span>
               ) : room.current_legislation ? (
-                room.current_legislation
+                room.current_legislation.replace(/^(bill\s*\d+|res\s*\d+)[:.-]?\s*/i, '')
               ) : (
                 'General Business / No Bill Active'
               )}
@@ -478,7 +476,7 @@ export const SpectatorBoard: React.FC = () => {
             <div className="md:col-span-7 space-y-2.5">
               {displaySpeaker ? (
                 <div className="p-4 sm:p-5 rounded-xl bg-slate-50 border border-slate-200 flex flex-col justify-center min-h-[96px] space-y-1 shadow-xs">
-                  <h4 className="font-serif-editorial font-bold text-slate-900 text-lg sm:text-xl leading-snug">
+                  <h4 className="font-bold text-slate-900 text-lg sm:text-xl leading-snug">
                     {displaySpeaker.name ? (
                       displaySpeaker.name.startsWith('Senator') ? displaySpeaker.name : `Senator ${displaySpeaker.name}`
                     ) : (
@@ -504,7 +502,7 @@ export const SpectatorBoard: React.FC = () => {
                     <div className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800 mb-0.5">
                       Being Questioned By
                     </div>
-                    <div className="font-serif-editorial font-bold text-base sm:text-lg text-slate-900 truncate">
+                    <div className="font-bold text-base sm:text-lg text-slate-900 truncate">
                       {activeQuestionerName ? (
                         activeQuestionerName.startsWith('Senator') ? activeQuestionerName : `Senator ${activeQuestionerName}`
                       ) : (
@@ -557,7 +555,7 @@ export const SpectatorBoard: React.FC = () => {
             </div>
 
             <div>
-              <div className="text-[10px] text-slate-400 uppercase font-bold">Quorum Status</div>
+              <div className="text-[10px] text-slate-400 uppercase font-bold">Quorum Verification</div>
               <div className={`font-bold flex items-center gap-1 ${quorumStats.isQuorumMet ? 'text-emerald-700' : 'text-rose-600'}`}>
                 {quorumStats.isQuorumMet ? (
                   <>
@@ -599,7 +597,7 @@ export const SpectatorBoard: React.FC = () => {
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-slate-900 text-white">
                     Your Seat
                   </span>
-                  <h3 className="font-serif-editorial font-bold text-slate-900 text-sm sm:text-base">
+                  <h3 className="font-bold text-slate-900 text-sm sm:text-base">
                     Senator {claimedSenator.name}
                   </h3>
                   {claimedSenator.school && (
@@ -643,7 +641,7 @@ export const SpectatorBoard: React.FC = () => {
           
           {/* Header & Controls: Mode Switcher & Search Bar */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
-            <h3 className="font-serif-editorial font-bold text-slate-900 text-base">Recency Ladder</h3>
+            <h3 className="font-bold text-slate-900 text-base">Recency Ladder</h3>
 
             <div className="flex items-center gap-2.5">
               {/* Search Filter */}
@@ -717,7 +715,7 @@ export const SpectatorBoard: React.FC = () => {
                       </span>
 
                       <div className="truncate">
-                        <div className="font-serif-editorial font-bold text-slate-900 text-sm truncate flex items-center gap-2">
+                        <div className="font-bold text-slate-900 text-sm truncate flex items-center gap-2">
                           <span className={!isPresent ? 'line-through text-slate-400' : ''}>
                             {rep.name}
                           </span>
@@ -938,13 +936,13 @@ export const SpectatorBoard: React.FC = () => {
             </p>
 
             <div className="max-h-60 overflow-y-auto space-y-1.5 pr-1 font-mono text-xs">
-              {representatives.filter((r) => r.active).length === 0 ? (
+              {representatives.filter((r) => r.active !== false).length === 0 ? (
                 <div className="text-center py-6 text-xs text-slate-400">
                   No representatives available in this chamber.
                 </div>
               ) : (
                 representatives
-                  .filter((r) => r.active)
+                  .filter((r) => r.active !== false)
                   .map((rep) => {
                     const isSelected = claimedSenatorId === rep.id;
                     return (
