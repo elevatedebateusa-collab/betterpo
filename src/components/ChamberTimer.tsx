@@ -29,6 +29,7 @@ export interface TimerAutoStartConfig {
   mode: 'speech' | 'question' | 'dq';
   duration: number;
   questionerName?: string | null;
+  autoStart?: boolean;
 }
 
 interface ChamberTimerProps {
@@ -69,19 +70,29 @@ export const ChamberTimer: React.FC<ChamberTimerProps> = ({
     onTimerTick?.(secondsLeft, mode);
   }, [secondsLeft, mode, onTimerTick]);
 
-  // Auto-start timer when action (speech or question) is awarded
+  // Auto-configure timer when action (speech or question) is awarded
   useEffect(() => {
     if (autoStartTrigger > 0 && isPO) {
       const targetMode = autoStartConfig?.mode || 'speech';
       const targetDuration = autoStartConfig?.duration || (targetMode === 'speech' ? 190 : 30);
+      // Speech calls do not start immediately (waits for speaker to begin); question calls start immediately
+      const shouldAutoRun = autoStartConfig?.autoStart !== undefined
+        ? autoStartConfig.autoStart
+        : targetMode === 'question';
 
       setDuration(targetDuration);
       setSecondsLeft(targetDuration);
-      setIsRunning(true);
+      setIsRunning(shouldAutoRun);
       setMode(targetMode);
-      broadcast(targetDuration, true, targetDuration, targetMode, autoStartConfig?.questionerName);
+      broadcast(targetDuration, shouldAutoRun, targetDuration, targetMode, autoStartConfig?.questionerName);
       if (roomId) {
-        chamberService.updateRoomTimer(roomId, 'running', targetDuration, targetDuration, targetMode);
+        chamberService.updateRoomTimer(
+          roomId,
+          shouldAutoRun ? 'running' : 'reset',
+          targetDuration,
+          targetDuration,
+          targetMode
+        );
       }
     }
   }, [autoStartTrigger, autoStartConfig, isPO, roomId]);

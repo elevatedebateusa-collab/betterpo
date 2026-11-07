@@ -5,7 +5,10 @@ import {
   RotateCcw, 
   Lock, 
   AlertCircle, 
-  Award
+  Award,
+  BookOpen,
+  ArrowRight,
+  X
 } from 'lucide-react';
 import { chamberService } from '../lib/chamberService';
 import { 
@@ -52,6 +55,7 @@ export const PODashboard: React.FC = () => {
   const [showRosterModal, setShowRosterModal] = useState<boolean>(false);
   const [showDocketModal, setShowDocketModal] = useState<boolean>(false);
   const [showDocketNominationModal, setShowDocketNominationModal] = useState<boolean>(false);
+  const [docketBannerDismissed, setDocketBannerDismissed] = useState<boolean>(false);
   const [showAmendmentModal, setShowAmendmentModal] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showAuditLogFull, setShowAuditLogFull] = useState<boolean>(false);
@@ -61,7 +65,8 @@ export const PODashboard: React.FC = () => {
     mode: 'speech' | 'question' | 'dq';
     duration: number;
     questionerName?: string | null;
-  }>({ mode: 'speech', duration: 190 });
+    autoStart?: boolean;
+  }>({ mode: 'speech', duration: 190, autoStart: false });
   const [currentTimerSeconds, setCurrentTimerSeconds] = useState<number>(190);
   const [currentTimerMode, setCurrentTimerMode] = useState<string>('speech');
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
@@ -533,16 +538,18 @@ export const PODashboard: React.FC = () => {
           mode: 'speech',
           duration: 190,
           questionerName: null,
+          autoStart: false,
         });
         setTimerAutoTrigger((prev) => prev + 1);
       } else if (eventType === 'question') {
-        // Every question starts a fresh 30-second CX timer automatically.
+        // Every question starts a fresh 30-second CX timer immediately
         const cxDuration = 30;
 
         setTimerConfig({
           mode: 'question',
           duration: cxDuration,
           questionerName: rep.name,
+          autoStart: true,
         });
         setTimerAutoTrigger((prev) => prev + 1);
         showToast(
@@ -843,6 +850,10 @@ export const PODashboard: React.FC = () => {
         onUpdateBillStatus={handleUpdateBillStatus}
         onToggleBreakCycle={handleToggleBreakCycle}
         onReorderBills={handleReorderBills}
+        onOpenNominationModal={() => {
+          setShowDocketModal(false);
+          setShowDocketNominationModal(true);
+        }}
       />
 
       {/* Docket Nomination & Voting Modal */}
@@ -1024,6 +1035,59 @@ export const PODashboard: React.FC = () => {
           >
             Conclude / Vote
           </button>
+        </section>
+      )}
+
+      {/* ========================================================
+          DOCKET NOMINATION REMINDER BANNER
+          Reminds the PO to open the floor for docket nominations
+          before beginning debate when no docket has been adopted yet.
+          ======================================================== */}
+      {bills.length === 0 && !docketBannerDismissed && (
+        <section className="bg-gradient-to-r from-emerald-50 via-teal-50/70 to-white border-b border-emerald-300/80 px-4 sm:px-6 py-3 shadow-[0_1px_3px_rgba(0,0,0,0.02)] animate-fade-in">
+          <div className="max-w-[1680px] mx-auto flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-[#006948] text-white flex items-center justify-center shrink-0 shadow-xs">
+                <BookOpen className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-2 py-0.5 rounded-lg text-[10px] font-mono font-bold bg-[#006948] text-white uppercase tracking-wider">
+                    Chamber Procedure
+                  </span>
+                  <span className="font-po-ui font-bold text-sm text-slate-900">
+                    Open the floor for docket nominations
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600 mt-0.5 font-sans">
+                  Say to the chamber:{' '}
+                  <span className="font-semibold text-emerald-950 italic">
+                    &ldquo;The Chair will now entertain motions to open the floor for docket nominations.&rdquo;
+                  </span>
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 self-end md:self-center shrink-0">
+              <button
+                type="button"
+                onClick={() => setShowDocketNominationModal(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-mono font-bold text-xs shadow-xs transition-all active:scale-[0.98] flex items-center gap-1.5 cursor-pointer"
+              >
+                <span>Start Docket Nominations</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setDocketBannerDismissed(true)}
+                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-colors cursor-pointer"
+                title="Dismiss reminder"
+                aria-label="Dismiss reminder"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
         </section>
       )}
 

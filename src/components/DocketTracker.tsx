@@ -18,6 +18,7 @@ interface DocketTrackerProps {
   onUpdateBillStatus: (billId: string, status: Bill['status']) => Promise<void>;
   onToggleBreakCycle: (bill: Bill) => Promise<void>;
   onReorderBills?: (reorderedBills: Bill[]) => Promise<void> | void;
+  onOpenNominationModal?: () => void;
 }
 
 export const DocketTracker: React.FC<DocketTrackerProps> = ({
@@ -30,6 +31,7 @@ export const DocketTracker: React.FC<DocketTrackerProps> = ({
   onUpdateBillStatus,
   onToggleBreakCycle,
   onReorderBills,
+  onOpenNominationModal,
 }) => {
   const [showAddForm, setShowAddForm] = useState<boolean>(false);
   const [billNumber, setBillNumber] = useState<string>('');
@@ -148,12 +150,24 @@ export const DocketTracker: React.FC<DocketTrackerProps> = ({
             options={(['all', 'active', 'upcoming', 'passed', 'failed', 'tabled'] as const).map(status => ({ value: status, label: status }))}
           />
 
-          <button
-            onClick={() => setShowAddForm(!showAddForm)}
-            className="px-4 py-2 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-semibold text-xs shadow-xs transition-colors active:scale-[0.98]"
-          >
-            <span>Add Bill to Docket</span>
-          </button>
+          <div className="flex items-center gap-2">
+            {onOpenNominationModal && (
+              <button
+                type="button"
+                onClick={onOpenNominationModal}
+                className="px-3.5 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200 font-semibold text-xs transition-colors active:scale-[0.98]"
+                title="Open Docket Nominations & Voting Workflow"
+              >
+                <span>Nominate Docket</span>
+              </button>
+            )}
+            <button
+              onClick={() => setShowAddForm(!showAddForm)}
+              className="px-4 py-2 rounded-xl bg-[#006948] hover:bg-[#005137] text-white font-semibold text-xs shadow-xs transition-colors active:scale-[0.98]"
+            >
+              <span>Add Bill to Docket</span>
+            </button>
+          </div>
         </div>
 
         {/* Informational Banner */}
